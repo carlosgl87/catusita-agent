@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('asesor', 'cliente')),
     whatsapp_number VARCHAR(20) UNIQUE,
@@ -12,7 +12,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id),
     canal VARCHAR(20) DEFAULT 'whatsapp',
@@ -23,7 +23,7 @@ CREATE TABLE conversations (
     activa BOOLEAN DEFAULT true
 );
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id UUID REFERENCES conversations(id),
     rol VARCHAR(15) NOT NULL CHECK (rol IN ('user', 'assistant', 'tool')),
@@ -32,7 +32,7 @@ CREATE TABLE messages (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE claims (
+CREATE TABLE IF NOT EXISTS claims (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     numero_reclamo VARCHAR(20) UNIQUE NOT NULL,
     conversation_id UUID REFERENCES conversations(id),
@@ -43,7 +43,7 @@ CREATE TABLE claims (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE knowledge_base (
+CREATE TABLE IF NOT EXISTS knowledge_base (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo VARCHAR(30),
     titulo TEXT,
@@ -53,4 +53,4 @@ CREATE TABLE knowledge_base (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX ON knowledge_base USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS knowledge_base_embedding_idx ON knowledge_base USING ivfflat (embedding vector_cosine_ops);
