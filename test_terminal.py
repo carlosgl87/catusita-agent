@@ -19,6 +19,7 @@ PERFIL_ASESOR = {
     "linea_asignada": "filtros y lubricantes",
     "nivel_acceso": "completo",
     "asesor_id": "ASE-001",
+    "vendedor_id": "V001",
     "conversation_id": "conv-test-001",
     "autenticado": True,
 }
@@ -35,17 +36,17 @@ PERFIL_CLIENTE = {
 
 EJEMPLOS_ASESOR = [
     "¿Cuánto stock hay del filtro FIL-OIL-001?",
-    "Dame el precio neto del FIL-OIL-001 para un taller, 20 unidades",
-    "¿Cuál es la situación crediticia del cliente 20512345678?",
-    "Muéstrame las letras próximas a vencer esta semana",
-    "¿Qué productos llevan más de 90 días en almacén?",
+    "Dame el precio del FIL-OIL-001",
+    "¿Cuál es la situación crediticia del cliente 20123456789?",
+    "Muéstrame las cobranzas pendientes del cliente 20123456789",
+    "Muéstrame todos los clientes de mi cartera",
     "Busca filtros de aceite para Toyota Hilux",
 ]
 
 EJEMPLOS_CLIENTE = [
     "¿Hay stock del filtro FIL-OIL-001?",
-    "¿Cuál es el estado de mi pedido PED-2025-001234?",
-    "Necesito la factura de mi pedido PED-2025-001098",
+    "¿Cuál es el estado de mis pedidos? Mi RUC es 20123456789",
+    "Necesito las facturas de mi RUC 20123456789",
     "Quiero poner un reclamo por el pedido PED-2025-001234, llegó un producto equivocado",
     "Busca pastillas de freno para Toyota Corolla placa GHI-321",
 ]

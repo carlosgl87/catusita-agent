@@ -1,6 +1,6 @@
 import json
 from shared import llm
-from agents import stock, prices, orders, credit, documents, catalog_rag, vehicle, collections, claims
+from agents import stock, prices, orders, credit, documents, catalog_rag, vehicle, collections, claims, cartera
 
 # ---------------------------------------------------------------------------
 # Definición de tools
@@ -9,119 +9,129 @@ from agents import stock, prices, orders, credit, documents, catalog_rag, vehicl
 TOOLS_VENDEDORES = [
     {
         "name": "consultar_stock",
-        "description": "Consulta el stock disponible de un producto en los almacenes. Usar cuando pregunten por disponibilidad, inventario o si hay un producto.",
+        "description": "Consulta el stock disponible de un producto en los almacenes. Usar cuando pregunten por disponibilidad, inventario o si hay stock de un producto.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "sku_code": {"type": "string", "description": "Código SKU del producto"},
-                "almacen_id": {"type": "integer", "description": "0=ambos, 1=Miraflores, 2=Ate"},
+                "sku_code": {"type": "string", "description": "Código SKU del producto. Ej: FIL-BOC-4521"},
             },
             "required": ["sku_code"],
         },
     },
     {
         "name": "consultar_precio",
-        "description": "Consulta el precio neto según tipo de cliente y escala de descuentos por volumen.",
+        "description": "Consulta el precio de lista de un producto. El agente de vendedores SOLO muestra precio de lista, nunca precios netos ni descuentos.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "sku_code": {"type": "string"},
-                "tipo_cliente": {"type": "string", "enum": ["tienda", "taller", "consumidor"]},
-                "cantidad": {"type": "integer", "description": "Cantidad para calcular descuento por volumen"},
-                "zona": {"type": "string", "description": "Zona del cliente: Lima o provincia"},
+                "sku_code": {"type": "string", "description": "Código SKU del producto"},
             },
-            "required": ["sku_code", "tipo_cliente"],
+            "required": ["sku_code"],
         },
     },
     {
-        "name": "consultar_pedido",
-        "description": "Consulta el estado y ubicación de un pedido en tiempo real.",
+        "name": "consultar_pedidos",
+        "description": "Consulta los pedidos de un cliente por su RUC. Muestra estado, fechas de entrega y tracking.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "pedido_id": {"type": "string"},
-                "ruc_cliente": {"type": "string", "description": "Alternativo al pedido_id"},
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente. Ej: 20123456789"},
+                "estado": {"type": "string", "description": "Filtrar por estado: en_almacen, en_transito, entregado, con_incidencia"},
             },
+            "required": ["cliente_ruc"],
         },
     },
     {
         "name": "consultar_credito",
-        "description": "Consulta límite de crédito, saldo disponible, deuda e historial de letras de un cliente. Solo para asesores.",
+        "description": "Consulta el límite de crédito, saldo usado y saldo disponible de un cliente. Solo para asesores comerciales.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "cliente_id": {"type": "string", "description": "RUC o código SAP del cliente"},
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
             },
-            "required": ["cliente_id"],
+            "required": ["cliente_ruc"],
+        },
+    },
+    {
+        "name": "consultar_cobranzas",
+        "description": "Consulta las letras, facturas vencidas y deuda pendiente de un cliente. Usar para revisar estado de cobranza.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
+                "estado": {"type": "string", "description": "Filtrar por estado: pendiente, vencida, pagada"},
+            },
+            "required": ["cliente_ruc"],
+        },
+    },
+    {
+        "name": "consultar_historial",
+        "description": "Consulta el historial de compras de un cliente en los últimos N meses. Útil para ver tendencia y frecuencia de compra.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
+                "meses": {"type": "integer", "description": "Cantidad de meses hacia atrás (default: 18)"},
+            },
+            "required": ["cliente_ruc"],
         },
     },
     {
         "name": "obtener_documentos",
-        "description": "Obtiene facturas, guías de remisión y notas de crédito de un cliente en PDF o XML.",
+        "description": "Obtiene facturas, guías de remisión y notas de crédito de un cliente.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "cliente_id": {"type": "string"},
-                "pedido_id": {"type": "string", "description": "Opcional, para un pedido específico"},
-                "tipo_doc": {"type": "string", "enum": ["factura", "guia", "nc", "todos"]},
-                "formato": {"type": "string", "enum": ["pdf", "xml", "ambos"]},
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
+                "tipo": {"type": "string", "description": "Tipo de documento: factura, guia, nc. Si no se especifica devuelve todos."},
             },
-            "required": ["cliente_id"],
+            "required": ["cliente_ruc"],
+        },
+    },
+    {
+        "name": "consultar_cartera",
+        "description": "DEBES usar esta tool SIEMPRE que el asesor pregunte por sus clientes, su cartera o su lista de cuentas. Devuelve todos los clientes asignados a este asesor con razón social, tipo, estado, límite de crédito, saldo pendiente y último pedido. Dispárala ante frases como 'mis clientes', 'mi cartera', 'qué clientes tengo', 'lista de mis cuentas', 'a quién le vendo' o cualquier consulta sobre el conjunto de clientes del asesor. NO inventes ni resumas la cartera de memoria: obtén siempre los datos con esta tool antes de responder. Acepta filtros opcionales por estado y tipo de cliente.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "estado": {"type": "string", "description": "Filtrar por estado del cliente: activo, suspendido, bloqueado"},
+                "tipo": {"type": "string", "description": "Filtrar por tipo: taller, distribuidor, consumidor_final"},
+            },
+        },
+    },
+    {
+        "name": "consultar_perfil_cliente",
+        "description": "Obtiene el perfil completo de un cliente: razón social, dirección, teléfono, tipo, vendedor asignado y estado.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ruc": {"type": "string", "description": "RUC del cliente. Ej: 20123456789"},
+            },
+            "required": ["ruc"],
         },
     },
     {
         "name": "buscar_catalogo",
-        "description": "Busca productos en el catálogo por descripción, síntoma o compatibilidad. Usar para equivalencias, fichas técnicas y búsqueda semántica.",
+        "description": "Busca productos en el catálogo por nombre, categoría o placa/VIN del vehículo. Usar para encontrar repuestos, ver equivalencias o buscar productos compatibles.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Búsqueda en lenguaje natural"},
-                "placa": {"type": "string", "description": "Placa del vehículo (opcional)"},
-                "vin": {"type": "string", "description": "VIN del vehículo (opcional)"},
+                "query": {"type": "string", "description": "Búsqueda en lenguaje natural. Ej: 'filtro de aceite Toyota'"},
+                "placa": {"type": "string", "description": "Placa del vehículo para buscar repuestos compatibles. Ej: ABC-123"},
+                "vin": {"type": "string", "description": "VIN del vehículo (17 caracteres)"},
             },
             "required": ["query"],
         },
     },
     {
         "name": "identificar_vehiculo",
-        "description": "Identifica marca, modelo y año de un vehículo a partir de su placa o VIN.",
+        "description": "Identifica marca, modelo y año de un vehículo por su placa o VIN. Devuelve también repuestos compatibles disponibles.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "placa": {"type": "string"},
-                "vin": {"type": "string"},
+                "placa_o_vin": {"type": "string", "description": "Placa (formato ABC-123) o VIN (17 caracteres)"},
             },
-        },
-    },
-    {
-        "name": "consultar_letras_proximas",
-        "description": "Muestra qué clientes de la cartera tienen letras por vencer en los próximos días.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "dias": {"type": "integer", "description": "Días hacia adelante (default: 7)"},
-            },
-        },
-    },
-    {
-        "name": "reporte_cobranzas",
-        "description": "Genera el reporte de cobranzas de la cartera del asesor para una semana.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "semana": {"type": "string", "description": "Semana en formato YYYY-WNN (opcional)"},
-            },
-        },
-    },
-    {
-        "name": "consultar_antiguedad_stock",
-        "description": "Muestra productos con más días en almacén para priorizar su venta.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "dias_minimos": {"type": "integer", "description": "Días mínimos en almacén (default: 90)"},
-                "almacen_id": {"type": "integer", "description": "0=ambos, 1=Miraflores, 2=Ate"},
-            },
+            "required": ["placa_o_vin"],
         },
     },
 ]
@@ -129,72 +139,81 @@ TOOLS_VENDEDORES = [
 TOOLS_CLIENTES = [
     {
         "name": "consultar_stock",
-        "description": "Consulta el stock disponible de un producto.",
+        "description": "Consulta si un producto está disponible en stock.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "sku_code": {"type": "string"},
-                "almacen_id": {"type": "integer", "description": "0=ambos, 1=Miraflores, 2=Ate"},
+                "sku_code": {"type": "string", "description": "Código SKU del producto"},
             },
             "required": ["sku_code"],
         },
     },
     {
-        "name": "consultar_pedido",
-        "description": "Consulta el estado de un pedido del cliente.",
+        "name": "consultar_precio",
+        "description": "Consulta el precio de lista de un producto.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "pedido_id": {"type": "string"},
-                "ruc_cliente": {"type": "string"},
+                "sku_code": {"type": "string", "description": "Código SKU del producto"},
             },
+            "required": ["sku_code"],
+        },
+    },
+    {
+        "name": "consultar_pedidos",
+        "description": "Consulta el estado de los pedidos propios del cliente.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
+                "estado": {"type": "string", "description": "Filtrar por estado del pedido"},
+            },
+            "required": ["cliente_ruc"],
         },
     },
     {
         "name": "obtener_documentos",
-        "description": "Obtiene facturas y guías del propio cliente.",
+        "description": "Obtiene facturas y guías de remisión propias del cliente.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "cliente_id": {"type": "string"},
-                "pedido_id": {"type": "string"},
-                "tipo_doc": {"type": "string", "enum": ["factura", "guia", "nc", "todos"]},
-                "formato": {"type": "string", "enum": ["pdf", "xml", "ambos"]},
+                "cliente_ruc": {"type": "string", "description": "RUC del cliente"},
+                "tipo": {"type": "string", "description": "Tipo: factura, guia, nc"},
             },
-            "required": ["cliente_id"],
+            "required": ["cliente_ruc"],
         },
     },
     {
         "name": "buscar_catalogo",
-        "description": "Busca productos en el catálogo, equivalencias y fichas técnicas.",
+        "description": "Busca productos en el catálogo o repuestos compatibles con un vehículo.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string"},
-                "placa": {"type": "string"},
-                "vin": {"type": "string"},
+                "query": {"type": "string", "description": "Búsqueda en lenguaje natural"},
+                "placa": {"type": "string", "description": "Placa del vehículo"},
+                "vin": {"type": "string", "description": "VIN del vehículo"},
             },
             "required": ["query"],
         },
     },
     {
         "name": "identificar_vehiculo",
-        "description": "Identifica el vehículo por placa o VIN.",
+        "description": "Identifica un vehículo por placa o VIN.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "placa": {"type": "string"},
-                "vin": {"type": "string"},
+                "placa_o_vin": {"type": "string", "description": "Placa o VIN del vehículo"},
             },
+            "required": ["placa_o_vin"],
         },
     },
     {
         "name": "registrar_reclamo",
-        "description": "Registra una queja o reclamo del cliente y genera un número de caso.",
+        "description": "Registra un reclamo o queja del cliente y genera un número de caso.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "pedido_id": {"type": "string", "description": "Número de pedido involucrado"},
+                "pedido_id": {"type": "string", "description": "Número de pedido relacionado"},
                 "motivo": {"type": "string", "description": "Descripción del reclamo"},
             },
             "required": ["pedido_id", "motivo"],
@@ -207,16 +226,22 @@ TOOLS_CLIENTES = [
 # ---------------------------------------------------------------------------
 
 SYSTEM_VENDEDOR = """Eres el asistente de IA de Grupo Catusita para asesores comerciales.
-Tu nombre es Catu. Tienes acceso completo a información de SAP: stock, precios netos,
-crédito de clientes, facturas, guías, cobranzas y catálogo de productos.
+Tu nombre es Catu. Tienes acceso a información de SAP: stock, precios de lista, pedidos,
+crédito de clientes, facturas, guías, cobranzas, cartera de clientes y catálogo de productos.
 
-Reglas:
+Reglas importantes:
 - Responde siempre en español, de forma concisa y directa (máx. 3-4 líneas por sección)
-- Usa emojis con moderación para mejorar la lectura (✅ ⚠️ 🚚 📄)
-- Si te preguntan por información que requiere una tool, úsala antes de responder
-- Nunca inventes precios, stocks ni fechas — siempre usa las tools
+- Usa emojis con moderación (✅ ⚠️ 🚚 📄 💰)
+- NUNCA inventes precios, stocks ni fechas — siempre usa las tools
+- SOLO muestra precio de lista. Nunca menciones precios netos, descuentos ni condiciones especiales
+- Si el asesor pregunta por precio neto o descuentos, responde: "Los precios netos se coordinan directamente con tu jefe de línea"
+- Solo puedes consultar clientes de la cartera asignada a este asesor
+- SIEMPRE que el asesor pregunte por sus clientes, su cartera, su lista de cuentas o a quién le vende (ej. "mis clientes", "mi cartera", "qué clientes tengo"), DEBES llamar a la tool consultar_cartera antes de responder. Nunca enumeres ni resumas la cartera de memoria
 - Si una consulta requiere múltiples tools, ejecútalas todas antes de responder
-- El asesor {nombre} tiene asignada la línea: {linea_asignada}"""
+- Si la consulta excede tus permisos o no tienes información suficiente, deriva al área correspondiente
+
+El asesor {nombre} tiene asignada la línea: {linea_asignada}
+ID del vendedor: {vendedor_id}"""
 
 SYSTEM_CLIENTE = """Eres el asistente de IA de Grupo Catusita para clientes.
 Tu nombre es Catu. Puedes ayudar con: consulta de stock y precios de lista,
@@ -235,38 +260,41 @@ Reglas:
 
 async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     conv_id = perfil.get("conversation_id", "mock-conv-id")
-    asesor_id = perfil.get("asesor_id", "ASE-001")
+    vendedor_id = perfil.get("vendedor_id", "V001")
 
     dispatch = {
         "consultar_stock": lambda: stock.consultar_stock(
-            args["sku_code"], args.get("almacen_id", 0)
+            args["sku_code"]
         ),
         "consultar_precio": lambda: prices.consultar_precio(
-            args["sku_code"], args["tipo_cliente"],
-            asesor_id, args.get("cantidad", 1), args.get("zona")
+            args["sku_code"], tipo="lista"  # siempre precio lista
         ),
-        "consultar_pedido": lambda: orders.consultar_pedido(
-            args.get("pedido_id"), args.get("ruc_cliente")
+        "consultar_pedidos": lambda: orders.consultar_pedidos(
+            args["cliente_ruc"], args.get("estado")
         ),
-        "consultar_credito": lambda: credit.consultar_credito(args["cliente_id"]),
+        "consultar_credito": lambda: credit.consultar_credito(
+            args["cliente_ruc"]
+        ),
+        "consultar_cobranzas": lambda: collections.consultar_cobranzas(
+            args["cliente_ruc"], args.get("estado")
+        ),
+        "consultar_historial": lambda: credit.consultar_historial(
+            args["cliente_ruc"], args.get("meses", 18)
+        ),
         "obtener_documentos": lambda: documents.obtener_documentos(
-            args["cliente_id"], args.get("pedido_id"),
-            args.get("tipo_doc", "todos"), args.get("formato", "pdf")
+            args["cliente_ruc"], args.get("tipo")
+        ),
+        "consultar_cartera": lambda: cartera.consultar_cartera(
+            vendedor_id, args.get("estado"), args.get("tipo")
+        ),
+        "consultar_perfil_cliente": lambda: cartera.consultar_perfil_cliente(
+            args["ruc"]
         ),
         "buscar_catalogo": lambda: catalog_rag.buscar_catalogo(
             args["query"], args.get("placa"), args.get("vin")
         ),
         "identificar_vehiculo": lambda: vehicle.identificar_vehiculo(
-            args.get("placa"), args.get("vin")
-        ),
-        "consultar_letras_proximas": lambda: collections.consultar_letras_proximas(
-            asesor_id, args.get("dias", 7)
-        ),
-        "reporte_cobranzas": lambda: collections.reporte_cobranzas(
-            asesor_id, args.get("semana")
-        ),
-        "consultar_antiguedad_stock": lambda: stock.consultar_antiguedad(
-            args.get("almacen_id", 0), args.get("dias_minimos", 90)
+            args["placa_o_vin"]
         ),
         "registrar_reclamo": lambda: claims.registrar_reclamo(
             conv_id, args["pedido_id"], args["motivo"]
@@ -290,6 +318,7 @@ async def run_agent(mensaje: str, perfil: dict, historial: list) -> str:
         SYSTEM_VENDEDOR.format(
             nombre=perfil.get("nombre", "Asesor"),
             linea_asignada=perfil.get("linea_asignada", "general"),
+            vendedor_id=perfil.get("vendedor_id", "V001"),
         )
         if es_asesor
         else SYSTEM_CLIENTE

@@ -1,7 +1,7 @@
 import os
 from db import models
 
-USE_MOCK = os.getenv("USE_SAP_MOCK", "true").lower() == "true"
+USE_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 
 # Usuarios mock para desarrollo sin base de datos
 _MOCK_ASESORES = {
@@ -12,6 +12,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-001",
+        "vendedor_id": "V001",   # ← ID que usa el Mock SAP Server
         "autenticado": True,
     },
     "51912345678": {
@@ -21,6 +22,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "frenos y suspensión",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-002",
+        "vendedor_id": "V002",   # ← ID que usa el Mock SAP Server
         "autenticado": True,
     },
 }

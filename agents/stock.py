@@ -1,18 +1,14 @@
 from shared.sap_client import sap
 
 
-async def consultar_stock(sku_code: str, almacen_id: int = 0) -> dict:
-    result = await sap.get_stock(sku_code, almacen_id)
+async def consultar_stock(sku_code: str) -> dict:
+    result = await sap.get_stock(sku_code)
     if "error" in result:
         return result
-    result["almacen_miraflores_nombre"] = "Almacén Miraflores"
-    result["almacen_ate_nombre"] = "Almacén Ate"
     return result
 
 
-async def consultar_reposicion(sku_code: str) -> dict:
-    return await sap.get_restock_date(sku_code)
-
-
-async def consultar_antiguedad(almacen_id: int = 0, dias_minimos: int = 90) -> dict:
-    return await sap.get_stock_aging(almacen_id, dias_minimos)
+async def buscar_productos(q: str = None, categoria: str = None,
+                            marca: str = None, solo_con_stock: bool = False) -> dict:
+    return await sap.get_catalogo(q=q, categoria=categoria,
+                                   marca=marca, con_stock=solo_con_stock if solo_con_stock else None)
