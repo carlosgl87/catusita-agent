@@ -21,7 +21,8 @@ async def _abrir_conversacion(perfil: dict, agente_tipo: str, numero: str) -> st
     """
     if not USE_AUTH_MOCK:
         try:
-            return await models.create_conversation(perfil["user_id"], agente_tipo, numero)
+            user_id = perfil.get("user_id") or perfil.get("id")
+            return await models.create_conversation(user_id, agente_tipo, numero)
         except Exception as e:
             logging.error(f"Error guardando en DB: {e}", exc_info=True)
             print(f"Error guardando en DB (create_conversation): {e}")
