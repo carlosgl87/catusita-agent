@@ -1,5 +1,7 @@
 import json
+import time
 from shared import llm
+from db import models
 from agents import stock, prices, orders, credit, documents, catalog_rag, vehicle, collections, claims, cartera
 
 # ---------------------------------------------------------------------------
@@ -305,7 +307,18 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     fn = dispatch.get(name)
     if fn is None:
         return {"error": f"Tool desconocida: {name}"}
-    return await fn()
+
+    inicio = time.time()
+    resultado = await fn()
+    duracion_ms = int((time.time() - inicio) * 1000)
+
+    # Registro de uso de tools (best-effort: no debe romper el flujo)
+    try:
+        await models.log_tool_usage(conv_id, vendedor_id, name, duracion_ms)
+    except Exception:
+        pass
+
+    return resultado
 
 
 # ---------------------------------------------------------------------------

@@ -47,6 +47,17 @@ async def save_message(conversation_id: str, rol: str, contenido: str, tool_name
         )
 
 
+async def log_tool_usage(conversation_id: str, vendedor_id: str,
+                         tool_name: str, duracion_ms: int):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO tool_usage (conversation_id, vendedor_id, tool_name, duracion_ms)
+               VALUES ($1, $2, $3, $4)""",
+            conversation_id, vendedor_id, tool_name, duracion_ms,
+        )
+
+
 async def create_claim(conversation_id: str, pedido_id: str, motivo: str) -> str:
     pool = await get_pool()
     numero = f"REC-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}"
