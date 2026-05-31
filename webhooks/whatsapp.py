@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from fastapi import APIRouter, Request
 from shared import auth, evolution
 from orchestrator import router as agent_router
@@ -21,8 +22,9 @@ async def _abrir_conversacion(perfil: dict, agente_tipo: str, numero: str) -> st
     if not USE_AUTH_MOCK:
         try:
             return await models.create_conversation(perfil["user_id"], agente_tipo, numero)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"Error guardando en DB: {e}", exc_info=True)
+            print(f"Error guardando en DB (create_conversation): {e}")
     return str(uuid.uuid4())
 
 
@@ -76,8 +78,9 @@ async def webhook_whatsapp(request: Request):
     try:
         await models.save_message(conversation_id, "user", texto)
         await models.save_message(conversation_id, "assistant", respuesta)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.error(f"Error guardando en DB: {e}", exc_info=True)
+        print(f"Error guardando en DB (save_message): {e}")
 
     await evolution.evolution.send_message(numero, instance_name, respuesta)
 

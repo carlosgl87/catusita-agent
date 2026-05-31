@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from shared import llm
 from db import models
@@ -315,8 +316,9 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     # Registro de uso de tools (best-effort: no debe romper el flujo)
     try:
         await models.log_tool_usage(conv_id, vendedor_id, name, duracion_ms)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.error(f"Error guardando en DB: {e}", exc_info=True)
+        print(f"Error guardando en DB (tool_usage): {e}")
 
     return resultado
 
