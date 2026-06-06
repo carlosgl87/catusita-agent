@@ -139,7 +139,7 @@ TOOLS_VENDEDORES = [
     },
     {
         "name": "consultar_placa_sunarp",
-        "description": "Consulta los datos oficiales de un vehículo en SUNARP a partir de su placa peruana. Devuelve marca, modelo, año, color, VIN, número de motor, estado y propietario, además de la partida registral. La consulta tarda entre 20 y 60 segundos, así que avisa al usuario que estás consultando. Usar cuando el asesor necesite los datos registrales oficiales de un vehículo (distinto de identificar_vehiculo, que es la identificación rápida interna).",
+        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. IMPORTANTE: el resultado en texto SOLO trae datos registrales (oficina registral y número de partida). Los datos del vehículo (marca, modelo, año, color, VIN, motor, propietario) vienen DENTRO de la foto de la tarjeta de identificación vehicular, que se envía automáticamente al usuario por WhatsApp. Cuando el resultado tenga 'tiene_imagen': true, dile al usuario que esos datos están en la foto de la tarjeta que le acabas de enviar. NUNCA ofrezcas 'hacer una consulta más detallada' de marca/modelo/año/propietario: esa consulta no existe, los datos están en la foto.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -223,7 +223,7 @@ TOOLS_CLIENTES = [
     },
     {
         "name": "consultar_placa_sunarp",
-        "description": "Consulta los datos oficiales de un vehículo en SUNARP a partir de su placa peruana (marca, modelo, año, color, VIN, motor, estado). La consulta tarda entre 20 y 60 segundos, avisa al usuario que estás consultando.",
+        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. IMPORTANTE: el resultado en texto SOLO trae datos registrales (oficina y partida). Los datos del vehículo (marca, modelo, año, color, VIN, motor, propietario) vienen DENTRO de la foto de la tarjeta vehicular, que se envía automáticamente por WhatsApp. Cuando el resultado tenga 'tiene_imagen': true, dile al usuario que esos datos están en la foto que le acabas de enviar. NUNCA ofrezcas una 'consulta más detallada': no existe, los datos están en la foto.",
         "input_schema": {
             "type": "object",
             "properties": {
