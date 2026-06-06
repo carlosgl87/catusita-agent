@@ -2,20 +2,27 @@
 Webhook que recibe los eventos `whatsapp.message.received` de Kapso
 (WhatsApp Cloud API oficial).
 
-Payload típico (campos relevantes según docs.kapso.ai):
+El payload de Kapso (sandbox) llega en formato BATCH: los campos
+relevantes (message, phone_number_id, conversation) vienen dentro de
+`data: [ {...}, ... ]`, no en la raíz. Ejemplo real:
 
 {
-  "phone_number_id": "597907523413541",
-  "is_new_conversation": false,
-  "conversation": { "phone_number": "+15551234567" },
-  "message": {
-    "from": "51940351180",
-    "from_user_id": "...",
-    "username": "...",
-    "text":  { "body": "hola" },
-    "kapso": { "content": "hola", "direction": "inbound" },
-    "timestamp": 1717891234
-  }
+  "type": "whatsapp.message.received",
+  "batch": true,
+  "data": [
+    {
+      "message": {
+        "from": "51940351180",
+        "text":  { "body": "Hola" },
+        "kapso": { "content": "Hola", "direction": "inbound" },
+        "type": "text"
+      },
+      "conversation": { "phone_number_id": "597907523413541", ... },
+      "is_new_conversation": true,
+      "phone_number_id": "597907523413541"
+    }
+  ],
+  "batch_info": { ... }
 }
 
 Headers:
@@ -75,6 +82,122 @@ def _resolver_agente_tipo(phone_number_id: str) -> str:
     return "vendedor"
 
 
+async def _procesar_item(item: dict) -> dict:
+    """
+    Procesa un único mensaje entrante de Kapso (un elemento del batch).
+    """
+    message = item.get("message") or {}
+    # phone_number_id puede venir en la raíz del item o dentro de conversation
+    phone_number_id = str(
+        item.get("phone_number_id")
+        or (item.get("conversation") or {}).get("phone_number_id")
+        or ""
+    )
+
+    # ----------------------------------------------------------------------
+    # Filtrar por phone_number_id esperado
+    # ----------------------------------------------------------------------
+    permitidos = {
+        x for x in (KAPSO_PHONE_NUMBER_ID, KAPSO_PHONE_NUMBER_ID_CLIENTES) if x
+    }
+    if permitidos and phone_number_id not in {str(x) for x in permitidos}:
+        print(
+            f"[WEBHOOK] ignorado: phone_number_id={phone_number_id!r} "
+            f"no está en {permitidos}"
+        )
+        return {"status": "ignored", "reason": "unknown phone_number_id"}
+
+    # ----------------------------------------------------------------------
+    # Extraer número del remitente y texto
+    # ----------------------------------------------------------------------
+    numero = (message.get("from") or "").lstrip("+").split("@")[0]
+
+    # Texto: primero text.body; si no, kapso.content (incluye debouncing/agrupación)
+    texto = (
+        (message.get("text") or {}).get("body")
+        or (message.get("kapso") or {}).get("content")
+    )
+
+    print(f"[WEBHOOK] numero={numero!r} texto={texto!r} phone_number_id={phone_number_id}")
+
+    if not texto:
+        print("[WEBHOOK] ignorado: mensaje sin texto (imagen/audio/sticker)")
+        return {"status": "ignored", "reason": "no text"}
+
+    if not numero:
+        print("[WEBHOOK] ignorado: sin numero (message.from vacío)")
+        return {"status": "ignored", "reason": "no from"}
+
+    # ----------------------------------------------------------------------
+    # Resolver agente tipo + autenticación
+    # ----------------------------------------------------------------------
+    agente_tipo = _resolver_agente_tipo(phone_number_id)
+    print(f"[WEBHOOK] agente_tipo={agente_tipo}")
+
+    perfil = await auth.get_user_profile(numero, agente_tipo)
+    print(f"[WEBHOOK] perfil: {perfil}")
+
+    if not perfil.get("autenticado"):
+        print("[WEBHOOK] perfil no autenticado — pidiendo identificación")
+        try:
+            await kapso_mod.kapso.send_message(
+                numero, phone_number_id, perfil.get("mensaje", "")
+            )
+        except Exception as e:
+            logging.error(f"Error enviando msg de auth: {e}", exc_info=True)
+            print(f"[WEBHOOK] ERROR enviando auth_required: {e}")
+        return {"status": "auth_required"}
+
+    # ----------------------------------------------------------------------
+    # Comando de reset
+    # ----------------------------------------------------------------------
+    if texto.strip().lower() in ("reiniciar", "reset", "nueva conversacion"):
+        print("[WEBHOOK] comando de reinicio")
+        await context.clear_history(numero)
+        await kapso_mod.kapso.send_message(
+            numero, phone_number_id,
+            "Conversación reiniciada. ¿En qué puedo ayudarte?",
+        )
+        return {"status": "ok"}
+
+    # ----------------------------------------------------------------------
+    # Ejecutar el agente
+    # ----------------------------------------------------------------------
+    conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
+    perfil["conversation_id"] = conversation_id
+
+    historial = await context.get_history(numero)
+    print(
+        f"[WEBHOOK] procesando con el router: "
+        f"conversation_id={conversation_id} historial={len(historial)} msgs"
+    )
+
+    respuesta = await agent_router.run_agent(texto, perfil, historial)
+    print(f"[WEBHOOK] respuesta del router: {respuesta!r}")
+
+    # ----------------------------------------------------------------------
+    # Persistir y enviar
+    # ----------------------------------------------------------------------
+    await context.save_message(numero, "user", texto)
+    await context.save_message(numero, "assistant", respuesta)
+
+    try:
+        await models.save_message(conversation_id, "user", texto)
+        await models.save_message(conversation_id, "assistant", respuesta)
+    except Exception as e:
+        logging.error(f"Error guardando en DB: {e}", exc_info=True)
+        print(f"Error guardando en DB (save_message): {e}")
+
+    try:
+        envio = await kapso_mod.kapso.send_message(numero, phone_number_id, respuesta)
+        print(f"[WEBHOOK] enviado a WhatsApp -> {envio}")
+    except Exception as e:
+        logging.error(f"Error enviando mensaje por Kapso: {e}", exc_info=True)
+        print(f"[WEBHOOK] ERROR enviando a WhatsApp: {e}")
+
+    return {"status": "ok"}
+
+
 @router_wh.post("/whatsapp")
 async def webhook_whatsapp(request: Request):
     # ----------------------------------------------------------------------
@@ -110,115 +233,33 @@ async def webhook_whatsapp(request: Request):
 
     # ----------------------------------------------------------------------
     # [2] Sólo nos interesan los `whatsapp.message.received`.
+    #     El tipo viene en el header X-Webhook-Event y/o en data["type"].
     #     Otros eventos (sent / delivered / read / failed / conversation.*)
     #     los reconocemos con 200 OK y los ignoramos.
     # ----------------------------------------------------------------------
-    if event != "whatsapp.message.received":
-        print(f"[WEBHOOK] ignorado: evento {event!r} no relevante")
-        return {"status": "ignored", "reason": f"event {event}"}
-
-    message = data.get("message") or {}
-    phone_number_id = str(data.get("phone_number_id") or "")
+    tipo_evento = event or data.get("type", "")
+    if tipo_evento != "whatsapp.message.received":
+        print(f"[WEBHOOK] ignorado: evento {tipo_evento!r} no relevante")
+        return {"status": "ignored", "reason": f"event {tipo_evento}"}
 
     # ----------------------------------------------------------------------
-    # [3] Filtrar por phone_number_id esperado
+    # [3] El payload puede venir en batch (data: [ {...}, ... ]) o como un
+    #     único objeto en la raíz. Normalizamos a una lista y procesamos cada
+    #     mensaje por separado.
     # ----------------------------------------------------------------------
-    permitidos = {
-        x for x in (KAPSO_PHONE_NUMBER_ID, KAPSO_PHONE_NUMBER_ID_CLIENTES) if x
-    }
-    if permitidos and phone_number_id not in {str(x) for x in permitidos}:
-        print(
-            f"[WEBHOOK] ignorado: phone_number_id={phone_number_id!r} "
-            f"no está en {permitidos}"
-        )
-        return {"status": "ignored", "reason": "unknown phone_number_id"}
+    items = data.get("data")
+    if not isinstance(items, list):
+        items = [data]
 
-    # ----------------------------------------------------------------------
-    # [4] Extraer número del remitente y texto
-    # ----------------------------------------------------------------------
-    numero = (message.get("from") or "").lstrip("+").split("@")[0]
-
-    # Texto: primero text.body; si no, kapso.content (incluye debouncing/agrupación)
-    texto = (
-        (message.get("text") or {}).get("body")
-        or (message.get("kapso") or {}).get("content")
-    )
-
-    print(f"[WEBHOOK] numero={numero!r} texto={texto!r} phone_number_id={phone_number_id}")
-
-    if not texto:
-        print("[WEBHOOK] ignorado: mensaje sin texto (imagen/audio/sticker)")
-        return {"status": "ignored", "reason": "no text"}
-
-    if not numero:
-        print("[WEBHOOK] ignorado: sin numero (message.from vacío)")
-        return {"status": "ignored", "reason": "no from"}
-
-    # ----------------------------------------------------------------------
-    # [5] Resolver agente tipo + autenticación
-    # ----------------------------------------------------------------------
-    agente_tipo = _resolver_agente_tipo(phone_number_id)
-    print(f"[WEBHOOK] agente_tipo={agente_tipo}")
-
-    perfil = await auth.get_user_profile(numero, agente_tipo)
-    print(f"[WEBHOOK] perfil: {perfil}")
-
-    if not perfil.get("autenticado"):
-        print("[WEBHOOK] perfil no autenticado — pidiendo identificación")
+    resultados = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
         try:
-            await kapso_mod.kapso.send_message(
-                numero, phone_number_id, perfil.get("mensaje", "")
-            )
+            resultados.append(await _procesar_item(item))
         except Exception as e:
-            logging.error(f"Error enviando msg de auth: {e}", exc_info=True)
-            print(f"[WEBHOOK] ERROR enviando auth_required: {e}")
-        return {"status": "auth_required"}
+            logging.error(f"Error procesando item del webhook: {e}", exc_info=True)
+            print(f"[WEBHOOK] ERROR procesando item: {e}")
+            resultados.append({"status": "error"})
 
-    # ----------------------------------------------------------------------
-    # [6] Comando de reset
-    # ----------------------------------------------------------------------
-    if texto.strip().lower() in ("reiniciar", "reset", "nueva conversacion"):
-        print("[WEBHOOK] comando de reinicio")
-        await context.clear_history(numero)
-        await kapso_mod.kapso.send_message(
-            numero, phone_number_id,
-            "Conversación reiniciada. ¿En qué puedo ayudarte?",
-        )
-        return {"status": "ok"}
-
-    # ----------------------------------------------------------------------
-    # [7] Ejecutar el agente
-    # ----------------------------------------------------------------------
-    conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
-    perfil["conversation_id"] = conversation_id
-
-    historial = await context.get_history(numero)
-    print(
-        f"[WEBHOOK] procesando con el router: "
-        f"conversation_id={conversation_id} historial={len(historial)} msgs"
-    )
-
-    respuesta = await agent_router.run_agent(texto, perfil, historial)
-    print(f"[WEBHOOK] respuesta del router: {respuesta!r}")
-
-    # ----------------------------------------------------------------------
-    # [8] Persistir y enviar
-    # ----------------------------------------------------------------------
-    await context.save_message(numero, "user", texto)
-    await context.save_message(numero, "assistant", respuesta)
-
-    try:
-        await models.save_message(conversation_id, "user", texto)
-        await models.save_message(conversation_id, "assistant", respuesta)
-    except Exception as e:
-        logging.error(f"Error guardando en DB: {e}", exc_info=True)
-        print(f"Error guardando en DB (save_message): {e}")
-
-    try:
-        envio = await kapso_mod.kapso.send_message(numero, phone_number_id, respuesta)
-        print(f"[WEBHOOK] enviado a WhatsApp -> {envio}")
-    except Exception as e:
-        logging.error(f"Error enviando mensaje por Kapso: {e}", exc_info=True)
-        print(f"[WEBHOOK] ERROR enviando a WhatsApp: {e}")
-
-    return {"status": "ok"}
+    return {"status": "ok", "items": resultados}
