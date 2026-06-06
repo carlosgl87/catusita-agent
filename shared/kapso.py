@@ -9,6 +9,7 @@ Endpoint base: https://api.kapso.ai/meta/whatsapp/v24.0/{phone_number_id}/messag
 """
 import os
 import hmac
+import base64
 import hashlib
 
 import httpx
@@ -73,6 +74,10 @@ class KapsoClient:
         pnid = phone_number_id or KAPSO_PHONE_NUMBER_ID
         return f"{KAPSO_BASE_URL}/{pnid}/messages"
 
+    def _media_url(self, phone_number_id: str | None = None) -> str:
+        pnid = phone_number_id or KAPSO_PHONE_NUMBER_ID
+        return f"{KAPSO_BASE_URL}/{pnid}/media"
+
     async def send_message(self, numero: str, instance: str, texto: str) -> dict:
         """
         Envía un mensaje de texto.
@@ -118,6 +123,69 @@ class KapsoClient:
         }
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(self._send_url(), headers=self._headers, json=body)
+            if resp.status_code >= 400:
+                print(f"[KAPSO] error {resp.status_code}: {resp.text}")
+            resp.raise_for_status()
+            return resp.json()
+
+    async def _upload_media(
+        self,
+        contenido: bytes,
+        phone_number_id: str | None = None,
+        filename: str = "imagen.png",
+        mime: str = "image/png",
+    ) -> str:
+        """Sube un archivo a Kapso/Meta y devuelve el media_id.
+
+        El upload es multipart/form-data (NO json), así que NO se reusa
+        self._headers (que fija Content-Type: application/json).
+        """
+        files = {"file": (filename, contenido, mime)}
+        data = {"messaging_product": "whatsapp"}
+        headers = {"X-API-Key": KAPSO_API_KEY}
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                self._media_url(phone_number_id),
+                headers=headers,
+                files=files,
+                data=data,
+            )
+            if resp.status_code >= 400:
+                print(f"[KAPSO] error upload media {resp.status_code}: {resp.text}")
+            resp.raise_for_status()
+            return resp.json()["id"]
+
+    async def send_image_base64(
+        self,
+        numero: str,
+        instance: str,
+        imagen_base64: str,
+        caption: str = "",
+        filename: str = "imagen.png",
+    ) -> dict:
+        """Envía una imagen a partir de su contenido en base64.
+
+        Sube el PNG como media (obtiene media_id) y luego manda un mensaje
+        tipo `image` referenciando ese id. `instance` se usa como
+        phone_number_id (compat con la interfaz existente).
+        """
+        numero_clean = _normalizar_numero(numero)
+        raw = base64.b64decode(imagen_base64)
+        media_id = await self._upload_media(raw, phone_number_id=instance, filename=filename)
+
+        image_payload: dict = {"id": media_id}
+        if caption:
+            image_payload["caption"] = caption
+        body = {
+            "messaging_product": "whatsapp",
+            "to": numero_clean,
+            "type": "image",
+            "image": image_payload,
+        }
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                self._send_url(instance), headers=self._headers, json=body
+            )
             if resp.status_code >= 400:
                 print(f"[KAPSO] error {resp.status_code}: {resp.text}")
             resp.raise_for_status()

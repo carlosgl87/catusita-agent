@@ -165,6 +165,9 @@ async def _procesar_item(item: dict) -> dict:
     # ----------------------------------------------------------------------
     conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
     perfil["conversation_id"] = conversation_id
+    # Datos de envío para que las tools puedan encolar media (ej. foto SUNARP)
+    perfil["numero"] = numero
+    perfil["phone_number_id"] = phone_number_id
 
     historial = await context.get_history(numero)
     print(
@@ -194,6 +197,23 @@ async def _procesar_item(item: dict) -> dict:
     except Exception as e:
         logging.error(f"Error enviando mensaje por Kapso: {e}", exc_info=True)
         print(f"[WEBHOOK] ERROR enviando a WhatsApp: {e}")
+
+    # ----------------------------------------------------------------------
+    # Enviar media encolada por las tools (ej. foto de la tarjeta SUNARP)
+    # ----------------------------------------------------------------------
+    for media in perfil.get("_media_pendiente", []):
+        try:
+            await kapso_mod.kapso.send_image_base64(
+                numero,
+                phone_number_id,
+                media["imagen_base64"],
+                caption=media.get("caption", ""),
+                filename=media.get("filename", "imagen.png"),
+            )
+            print(f"[WEBHOOK] foto enviada a WhatsApp ({media.get('filename')})")
+        except Exception as e:
+            logging.error(f"Error enviando imagen por Kapso: {e}", exc_info=True)
+            print(f"[WEBHOOK] ERROR enviando imagen: {e}")
 
     return {"status": "ok"}
 

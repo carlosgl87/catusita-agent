@@ -137,6 +137,17 @@ TOOLS_VENDEDORES = [
             "required": ["placa_o_vin"],
         },
     },
+    {
+        "name": "consultar_placa_sunarp",
+        "description": "Consulta los datos oficiales de un vehículo en SUNARP a partir de su placa peruana. Devuelve marca, modelo, año, color, VIN, número de motor, estado y propietario, además de la partida registral. La consulta tarda entre 20 y 60 segundos, así que avisa al usuario que estás consultando. Usar cuando el asesor necesite los datos registrales oficiales de un vehículo (distinto de identificar_vehiculo, que es la identificación rápida interna).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "placa": {"type": "string", "description": "Placa del vehículo a consultar. Ej: 'F9N562'"},
+            },
+            "required": ["placa"],
+        },
+    },
 ]
 
 TOOLS_CLIENTES = [
@@ -208,6 +219,17 @@ TOOLS_CLIENTES = [
                 "placa_o_vin": {"type": "string", "description": "Placa o VIN del vehículo"},
             },
             "required": ["placa_o_vin"],
+        },
+    },
+    {
+        "name": "consultar_placa_sunarp",
+        "description": "Consulta los datos oficiales de un vehículo en SUNARP a partir de su placa peruana (marca, modelo, año, color, VIN, motor, estado). La consulta tarda entre 20 y 60 segundos, avisa al usuario que estás consultando.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "placa": {"type": "string", "description": "Placa del vehículo a consultar. Ej: 'F9N562'"},
+            },
+            "required": ["placa"],
         },
     },
     {
@@ -300,6 +322,9 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
         "identificar_vehiculo": lambda: vehicle.identificar_vehiculo(
             args["placa_o_vin"]
         ),
+        "consultar_placa_sunarp": lambda: vehicle.consultar_placa_sunarp(
+            args["placa"]
+        ),
         "registrar_reclamo": lambda: claims.registrar_reclamo(
             conv_id, args["pedido_id"], args["motivo"]
         ),
@@ -312,6 +337,20 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     inicio = time.time()
     resultado = await fn()
     duracion_ms = int((time.time() - inicio) * 1000)
+
+    # ------------------------------------------------------------------
+    # Media (imagen base64) → no debe llegar al LLM. Se extrae y se encola
+    # en el perfil para que el webhook la envíe por WhatsApp como foto.
+    # ------------------------------------------------------------------
+    if isinstance(resultado, dict) and resultado.get("imagen_base64"):
+        b64 = resultado.pop("imagen_base64")
+        placa = (resultado.get("placa") or args.get("placa") or "").strip()
+        perfil.setdefault("_media_pendiente", []).append({
+            "imagen_base64": b64,
+            "caption": f"Tarjeta de identificación vehicular{' — ' + placa if placa else ''}",
+            "filename": f"placa_{placa or 'vehiculo'}.png",
+        })
+        resultado["tiene_imagen"] = True
 
     # Registro de uso de tools (best-effort: no debe romper el flujo)
     try:

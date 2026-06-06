@@ -16,16 +16,25 @@ class SAPClient:
             timeout=10.0,
         )
 
-    async def _get(self, path: str, params: dict = None) -> dict:
-        """Helper para GET con manejo de errores uniforme."""
+    async def _get(self, path: str, params: dict = None, timeout: float = None) -> dict:
+        """Helper para GET con manejo de errores uniforme.
+
+        `timeout` permite sobreescribir el timeout por defecto del cliente
+        (útil para endpoints lentos como la consulta de placas en SUNARP).
+        """
         try:
-            resp = await self._http.get(path, params=params)
+            kwargs = {"params": params}
+            if timeout is not None:
+                kwargs["timeout"] = timeout
+            resp = await self._http.get(path, **kwargs)
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return {"error": f"No encontrado: {path}"}
             return {"error": f"Error del servidor SAP: {e.response.status_code}"}
+        except httpx.TimeoutException:
+            return {"error": "La consulta tardó demasiado. Inténtalo de nuevo en un momento."}
         except httpx.RequestError:
             return {"error": "No se pudo conectar al servidor SAP. Inténtalo en unos minutos."}
 
@@ -64,6 +73,16 @@ class SAPClient:
 
     async def get_vehiculo(self, placa_o_vin: str) -> dict:
         return await self._get(f"/vehiculo/{placa_o_vin}")
+
+    async def get_placa(self, placa: str, imagen: bool = False) -> dict:
+        """Consulta oficial en SUNARP por placa.
+
+        Latencia alta (~20-60s, abre un navegador real), por eso usa un
+        timeout largo. Por defecto NO pide la imagen (imagen=false) para no
+        traer ~150 KB de base64 innecesarios.
+        """
+        params = {"imagen": str(imagen).lower()}
+        return await self._get(f"/placas/{placa}", params=params, timeout=120.0)
 
     async def get_catalogo(self, q: str = None, categoria: str = None,
                             marca: str = None, con_stock: bool = None) -> dict:
