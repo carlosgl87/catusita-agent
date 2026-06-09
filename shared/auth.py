@@ -25,6 +25,26 @@ _MOCK_ASESORES = {
         "vendedor_id": "V002",   # ← ID que usa el Mock SAP Server
         "autenticado": True,
     },
+    "51940351180": {
+        "user_id": "asesor-003",
+        "tipo": "asesor",
+        "nombre": "Gabriel Cánepa",
+        "linea_asignada": "filtros y lubricantes",
+        "nivel_acceso": "completo",
+        "asesor_id": "ASE-003",
+        "vendedor_id": "V001",   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "autenticado": True,
+    },
+    "51979405331": {
+        "user_id": "asesor-004",
+        "tipo": "asesor",
+        "nombre": "Carlos Gamero",
+        "linea_asignada": "filtros y lubricantes",
+        "nivel_acceso": "completo",
+        "asesor_id": "ASE-004",
+        "vendedor_id": "V001",   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "autenticado": True,
+    },
 }
 
 _MOCK_CLIENTES_RUC = {
