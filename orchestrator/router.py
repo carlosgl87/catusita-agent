@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from shared import llm
+from shared.sap_client import sap
 from db import models
 from agents import stock, prices, orders, credit, documents, catalog_rag, vehicle, collections, claims, cartera
 
@@ -263,6 +264,7 @@ Reglas importantes:
 - Solo puedes consultar clientes de la cartera asignada a este asesor
 - SIEMPRE que el asesor pregunte por sus clientes, su cartera, su lista de cuentas o a quién le vende (ej. "mis clientes", "mi cartera", "qué clientes tengo"), DEBES llamar a la tool consultar_cartera antes de responder. Nunca enumeres ni resumas la cartera de memoria
 - Cuando el asesor mencione un cliente por nombre parcial (ej: 'Repuestos Razo', 'Taller Aguilera'), NUNCA le pidas el RUC. En su lugar: (1) llama a consultar_cartera para obtener la lista de clientes, (2) identifica el cliente que más se parece al nombre mencionado, (3) usa su RUC automáticamente para las consultas siguientes. Solo pide el RUC o la razon social completa si hay dos o más clientes con nombres muy similares y no puedes distinguirlos.
+- Cuando listes clientes o te refieras a uno de ellos, escribe siempre su RUC entre paréntesis al lado de su nombre o razón social (ej: Repuestos Razo SAC (RUC: 20638346578)), para que el RUC quede registrado en el historial de la conversación.
 - Si una consulta requiere múltiples tools, ejecútalas todas antes de responder
 - Si la consulta excede tus permisos o no tienes información suficiente, deriva al área correspondiente
 
@@ -324,6 +326,57 @@ async def _rucs_de_cartera(perfil: dict) -> set:
     return rucs
 
 
+async def _resolver_ruc(ruc_o_nombre: str, perfil: dict) -> dict:
+    """
+    Intenta resolver un RUC o nombre parcial al RUC de un cliente en la cartera
+    del asesor.
+    Retorna un diccionario:
+      - {"status": "ok", "ruc": "..."} si se resolvió a un único cliente.
+      - {"status": "multiple", "clientes": [...]} si hay varias coincidencias.
+      - {"status": "none"} si no hay ninguna coincidencia.
+    """
+    ruc_clean = ruc_o_nombre.strip()
+    vendedor_id = perfil.get("vendedor_id", "V001")
+    try:
+        data = await cartera.consultar_cartera(vendedor_id)
+        clientes = data.get("clientes", []) if isinstance(data, dict) else []
+    except Exception:
+        clientes = []
+
+    # 1. Intentar coincidencia exacta de RUC
+    for c in clientes:
+        if c.get("ruc") == ruc_clean:
+            return {"status": "ok", "ruc": ruc_clean}
+
+    # 2. Si no es coincidencia exacta, buscar por nombre (razon_social)
+    nombre_lower = ruc_clean.lower()
+    exact_matches = []
+    partial_matches = []
+
+    for c in clientes:
+        ruc_val = c.get("ruc")
+        razon_social = c.get("razon_social", "")
+        razon_lower = razon_social.lower()
+
+        if ruc_val:
+            if nombre_lower == razon_lower:
+                exact_matches.append(c)
+            elif nombre_lower in razon_lower or razon_lower in nombre_lower:
+                partial_matches.append(c)
+
+    if len(exact_matches) == 1:
+        return {"status": "ok", "ruc": exact_matches[0]["ruc"]}
+    elif len(exact_matches) > 1:
+        return {"status": "multiple", "clientes": exact_matches}
+
+    if len(partial_matches) == 1:
+        return {"status": "ok", "ruc": partial_matches[0]["ruc"]}
+    elif len(partial_matches) > 1:
+        return {"status": "multiple", "clientes": partial_matches}
+
+    return {"status": "none"}
+
+
 # ---------------------------------------------------------------------------
 # Dispatch de tools
 # ---------------------------------------------------------------------------
@@ -338,6 +391,45 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     arg_ruc = RUC_SCOPED_TOOLS.get(name)
     if arg_ruc and perfil.get("tipo") == "asesor":
         ruc = (args.get(arg_ruc) or "").strip()
+        if ruc:
+            # Detectar si el input tiene formato de RUC
+            es_ruc_formato = ruc.isdigit() and len(ruc) == 11
+            
+            res = await _resolver_ruc(ruc, perfil)
+            if res["status"] == "ok":
+                args[arg_ruc] = res["ruc"]
+                ruc = res["ruc"]
+            elif res["status"] == "multiple":
+                clientes_simplificados = [
+                    {"ruc": c["ruc"], "razon_social": c["razon_social"]}
+                    for c in res["clientes"]
+                ]
+                return {
+                    "error": "MULTIPLE_COINCIDENCIAS",
+                    "mensaje": (
+                        f"Se encontraron múltiples clientes con el término '{ruc}' en tu cartera. "
+                        "Por favor, pregúntale al usuario a cuál de ellos se refiere."
+                    ),
+                    "clientes": clientes_simplificados
+                }
+            else:
+                if es_ruc_formato:
+                    return {
+                        "error": "ACCESO_DENEGADO",
+                        "mensaje": (
+                            "Ese cliente no pertenece a tu cartera asignada. "
+                            "Solo puedo darte información de tus propios clientes."
+                        ),
+                    }
+                else:
+                    return {
+                        "error": "CLIENTE_NO_ENCONTRADO",
+                        "mensaje": (
+                            f"No se encontró ningún cliente con el término '{ruc}' en tu cartera. "
+                            "Por favor, pídele al usuario que verifique el nombre o te proporcione su RUC."
+                        ),
+                    }
+
         if ruc and ruc not in await _rucs_de_cartera(perfil):
             return {
                 "error": "ACCESO_DENEGADO",
@@ -396,6 +488,31 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     inicio = time.time()
     resultado = await fn()
     duracion_ms = int((time.time() - inicio) * 1000)
+
+    # --- Fallback para búsqueda de productos si el SKU no es válido ---
+    if name in ("consultar_stock", "consultar_precio") and isinstance(resultado, dict):
+        if "error" in resultado or resultado.get("detail") == "Producto no encontrado":
+            sku_query = args.get("sku_code", "").strip()
+            if sku_query:
+                try:
+                    search_res = await sap.get_catalogo(q=sku_query)
+                    productos = search_res.get("productos", []) if isinstance(search_res, dict) else []
+                except Exception:
+                    productos = []
+                
+                if productos:
+                    return {
+                        "error": "PRODUCTO_NO_ENCONTRADO_SUGERENCIAS",
+                        "mensaje": (
+                            f"No se encontró ningún producto con el SKU exacto '{sku_query}'. "
+                            "Sin embargo, encontramos estas coincidencias en el catálogo. "
+                            "Por favor, pregúntale al usuario si se refiere a alguna de estas opciones y muéstrale los SKUs y nombres correspondientes."
+                        ),
+                        "sugerencias": [
+                            {"sku": p["sku"], "nombre": p["nombre"], "categoria": p.get("categoria"), "marca": p.get("marca")}
+                            for p in productos[:5]
+                        ]
+                    }
 
     # ------------------------------------------------------------------
     # Media (imagen base64) → no debe llegar al LLM. Se extrae y se encola
