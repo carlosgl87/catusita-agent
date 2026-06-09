@@ -266,6 +266,23 @@ Reglas importantes:
 - Si una consulta requiere múltiples tools, ejecútalas todas antes de responder
 - Si la consulta excede tus permisos o no tienes información suficiente, deriva al área correspondiente
 
+Reglas de privacidad y alcance (OBLIGATORIAS):
+- NUNCA reveles en qué almacén, local, distrito o ubicación física está un producto o un despacho. Si te lo preguntan, responde: "No manejo la ubicación física del stock ni del despacho; coordina eso con logística."
+- NUNCA reveles la hora de salida del reparto ni desde qué local se despacha. Deriva a logística.
+- Si una tool devuelve un error con "ACCESO_DENEGADO", comunica su mensaje tal cual y NO reintentes con otra tool ni inventes datos.
+
+Funcionalidades aún no disponibles (P2) — di que todavía no están y deriva:
+- Fecha de reposición / reabastecimiento de producto agotado: "Aún no tengo conectada la fecha de reposición. Confírmala con tu jefe de línea."
+- Antigüedad de mercadería en almacén (productos con +90 días / +6 meses): "Ese reporte todavía no está disponible en el asistente."
+
+Derivaciones (NO lo resuelvas tú, deriva al área correcta):
+- Descuento por volumen / precio especial fuera de lista / precio diferenciado por zona o provincia: "Eso se coordina con tu jefe de línea; yo solo manejo precio de lista."
+- Excepción o ampliación de crédito: "Las excepciones de crédito las aprueba el área de créditos; deriva el caso ahí."
+- Reclamo o devolución (producto equivocado, dañado, etc.): toma los datos del pedido y el motivo y di "Voy a registrar el caso para que atención al cliente lo gestione." (tú no resuelves el reclamo).
+
+Anti-alucinación:
+- Si no tienes el dato vía una tool, di explícitamente que no lo tienes. NUNCA inventes precios, stocks, fechas, números de pedido ni datos de clientes.
+
 El asesor {nombre} tiene asignada la línea: {linea_asignada}
 ID del vendedor: {vendedor_id}"""
 
@@ -281,12 +298,54 @@ Reglas:
 - Nunca inventes información — siempre usa las tools disponibles"""
 
 # ---------------------------------------------------------------------------
+# Control de acceso por cartera
+# ---------------------------------------------------------------------------
+# Tools cuyo RUC debe pertenecer a la cartera del asesor antes de ejecutarse.
+# El valor es el nombre del argumento que contiene el RUC del cliente.
+RUC_SCOPED_TOOLS = {
+    "consultar_credito": "cliente_ruc",
+    "consultar_cobranzas": "cliente_ruc",
+    "consultar_historial": "cliente_ruc",
+    "consultar_pedidos": "cliente_ruc",
+    "obtener_documentos": "cliente_ruc",
+    "consultar_perfil_cliente": "ruc",
+}
+
+
+async def _rucs_de_cartera(perfil: dict) -> set:
+    """RUCs de la cartera del asesor, cacheados en el perfil para no repetir
+    llamadas al Mock SAP dentro del mismo turno."""
+    cache = perfil.get("_cartera_rucs")
+    if cache is not None:
+        return cache
+    data = await cartera.consultar_cartera(perfil.get("vendedor_id", "V001"))
+    rucs = {c["ruc"] for c in data.get("clientes", [])} if isinstance(data, dict) else set()
+    perfil["_cartera_rucs"] = rucs
+    return rucs
+
+
+# ---------------------------------------------------------------------------
 # Dispatch de tools
 # ---------------------------------------------------------------------------
 
 async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
     conv_id = perfil.get("conversation_id", "mock-conv-id")
     vendedor_id = perfil.get("vendedor_id", "V001")
+
+    # --- Control de acceso por cartera (solo asesores) ---
+    # Antes de tocar el Mock SAP, validar que el RUC consultado sea de la
+    # cartera del asesor. No confiar solo en el system prompt.
+    arg_ruc = RUC_SCOPED_TOOLS.get(name)
+    if arg_ruc and perfil.get("tipo") == "asesor":
+        ruc = (args.get(arg_ruc) or "").strip()
+        if ruc and ruc not in await _rucs_de_cartera(perfil):
+            return {
+                "error": "ACCESO_DENEGADO",
+                "mensaje": (
+                    "Ese cliente no pertenece a tu cartera asignada. "
+                    "Solo puedo darte información de tus propios clientes."
+                ),
+            }
 
     dispatch = {
         "consultar_stock": lambda: stock.consultar_stock(

@@ -47,14 +47,28 @@ _MOCK_CLIENTES_RUC = {
 }
 
 
+def _asesor_sandbox(numero_whatsapp: str) -> dict:
+    """Perfil de asesor por defecto para el sandbox: en Kapso quien escribe en el
+    canal de vendedores ES un asesor de ventas, aunque su celular no esté en la
+    lista mock. Se mapea a V001 (la cartera con datos de QA)."""
+    return {
+        "user_id": f"asesor-sandbox-{numero_whatsapp}",
+        "tipo": "asesor",
+        "nombre": "Luis García",
+        "linea_asignada": "filtros y lubricantes",
+        "nivel_acceso": "completo",
+        "asesor_id": "ASE-001",
+        "vendedor_id": "V001",
+        "whatsapp_number": numero_whatsapp,
+        "autenticado": True,
+    }
+
+
 async def get_user_profile(numero_whatsapp: str, agente_tipo: str) -> dict:
     if USE_MOCK:
         if agente_tipo == "vendedor":
-            perfil = _MOCK_ASESORES.get(numero_whatsapp)
-            if perfil:
-                return perfil
-            return {"autenticado": False, "tipo": "asesor",
-                    "mensaje": "Tu número no está registrado. Contacta a tu supervisor."}
+            # Número conocido → su perfil; cualquier otro → asesor sandbox (V001).
+            return _MOCK_ASESORES.get(numero_whatsapp) or _asesor_sandbox(numero_whatsapp)
         else:
             # Para clientes en mock, aceptar cualquier número con estado no-autenticado
             return {
