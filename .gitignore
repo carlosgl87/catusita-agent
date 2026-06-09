@@ -7,3 +7,10 @@ build/
 .venv/
 venv/
 *.log
+
+# Documentos internos de planificación / QA (no versionar)
+QA_agente.md
+PROMPT_cambios_catusita_agent.md
+plan_de_datos.md
+plan_de_implementacion.md
+plan_de_prueba.md
