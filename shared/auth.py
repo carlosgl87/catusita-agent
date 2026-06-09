@@ -45,6 +45,16 @@ _MOCK_ASESORES = {
         "vendedor_id": "V001",   # ← cartera con datos de QA (Transportes Andinos, etc.)
         "autenticado": True,
     },
+    "51941310500": {
+        "user_id": "asesor-005",
+        "tipo": "asesor",
+        "nombre": "Gabriel Villanueva",
+        "linea_asignada": "filtros y lubricantes",
+        "nivel_acceso": "completo",
+        "asesor_id": "ASE-005",
+        "vendedor_id": "V001",   # ← cartera con datos de QA
+        "autenticado": True,
+    },
 }
 
 _MOCK_CLIENTES_RUC = {
