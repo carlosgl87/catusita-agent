@@ -14,3 +14,7 @@ PROMPT_cambios_catusita_agent.md
 plan_de_datos.md
 plan_de_implementacion.md
 plan_de_prueba.md
+
+# Skills internos y guías (local, no versionar)
+.claude/skills/
+añadir_nuevo_usuario_mock.md
