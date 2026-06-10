@@ -23,3 +23,35 @@ async def create_message(
     if tools:
         kwargs["tools"] = tools
     return await _client.messages.create(**kwargs)
+
+
+async def extraer_texto_de_imagen(
+    imagen_base64: str,
+    instruccion: str,
+    media_type: str = "image/png",
+    max_tokens: int = 1024,
+) -> str:
+    """Lee una imagen con la visión de Claude y devuelve el texto extraído.
+
+    Se usa para volcar a texto los datos que SUNARP solo entrega dentro de la
+    foto de la tarjeta de identificación vehicular (marca, modelo, año, VIN, etc.).
+    """
+    response = await _client.messages.create(
+        model=MODEL,
+        max_tokens=max_tokens,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": imagen_base64,
+                    },
+                },
+                {"type": "text", "text": instruccion},
+            ],
+        }],
+    )
+    return "".join(b.text for b in response.content if hasattr(b, "text")).strip()

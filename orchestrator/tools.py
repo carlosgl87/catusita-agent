@@ -134,7 +134,7 @@ TOOLS_VENDEDORES = [
     },
     {
         "name": "consultar_placa_sunarp",
-        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. IMPORTANTE: el resultado en texto SOLO trae datos registrales (oficina registral y número de partida). Los datos del vehículo (marca, modelo, año, color, VIN, motor, propietario) vienen DENTRO de la foto de la tarjeta de identificación vehicular, que se envía automáticamente al usuario por WhatsApp. Cuando el resultado tenga 'tiene_imagen': true, dile al usuario que esos datos están en la foto de la tarjeta que le acabas de enviar. NUNCA ofrezcas 'hacer una consulta más detallada' de marca/modelo/año/propietario: esa consulta no existe, los datos están en la foto.",
+        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. El resultado trae los datos del vehículo EN TEXTO en el campo 'datos_vehiculo_texto' (marca, modelo, año, color, VIN/serie, motor, propietario, etc.), extraídos de la tarjeta de identificación vehicular. SIEMPRE que exista 'datos_vehiculo_texto', preséntale esos datos al usuario por escrito en tu respuesta. Además, la FOTO de la tarjeta se le envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónale que también le llega la foto). Los datos registrales (oficina/partida) vienen en 'sedes' y 'mensaje'.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -218,7 +218,7 @@ TOOLS_CLIENTES = [
     },
     {
         "name": "consultar_placa_sunarp",
-        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. IMPORTANTE: el resultado en texto SOLO trae datos registrales (oficina y partida). Los datos del vehículo (marca, modelo, año, color, VIN, motor, propietario) vienen DENTRO de la foto de la tarjeta vehicular, que se envía automáticamente por WhatsApp. Cuando el resultado tenga 'tiene_imagen': true, dile al usuario que esos datos están en la foto que le acabas de enviar. NUNCA ofrezcas una 'consulta más detallada': no existe, los datos están en la foto.",
+        "description": "Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. El resultado trae los datos del vehículo EN TEXTO en el campo 'datos_vehiculo_texto' (marca, modelo, año, color, VIN/serie, motor, propietario, etc.), extraídos de la tarjeta vehicular. SIEMPRE que exista 'datos_vehiculo_texto', preséntale esos datos al usuario por escrito en tu respuesta. Además, la FOTO de la tarjeta se le envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónale que también le llega la foto).",
         "input_schema": {
             "type": "object",
             "properties": {

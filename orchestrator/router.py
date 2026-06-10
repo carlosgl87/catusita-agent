@@ -20,6 +20,17 @@ from orchestrator.tools import TOOLS_VENDEDORES, TOOLS_CLIENTES
 from orchestrator.prompts import SYSTEM_VENDEDOR, SYSTEM_CLIENTE
 
 
+# Instrucción para leer la tarjeta de identificación vehicular (SUNARP) con visión.
+_INSTRUCCION_TARJETA_VEHICULAR = (
+    "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
+    "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles del "
+    "vehículo: placa, marca, modelo, año de fabricación, color, número de serie/VIN, "
+    "número de motor, categoría o clase, combustible y propietario(s) si aparecen. "
+    "Usa exactamente los valores que ves, no inventes. Si un campo no se lee, omítelo. "
+    "No agregues comentarios ni explicaciones: solo los datos."
+)
+
+
 # ---------------------------------------------------------------------------
 # Post-procesamiento de resultados de tools
 # ---------------------------------------------------------------------------
@@ -143,6 +154,16 @@ async def execute_tool(name: str, args: dict, perfil: dict) -> dict:
             "filename": f"placa_{placa or 'vehiculo'}.png",
         })
         resultado["tiene_imagen"] = True
+
+        # Volcar a texto los datos del vehículo que vienen DENTRO de la foto,
+        # para que el modelo se los pueda dar al usuario también por escrito.
+        try:
+            datos = await llm.extraer_texto_de_imagen(b64, _INSTRUCCION_TARJETA_VEHICULAR)
+            if datos:
+                resultado["datos_vehiculo_texto"] = datos
+        except Exception as e:
+            logging.error(f"Error extrayendo datos de la imagen: {e}", exc_info=True)
+            print(f"Error extrayendo datos de la imagen: {e}")
 
     # Registro de uso de tools (best-effort: no debe romper el flujo)
     try:
