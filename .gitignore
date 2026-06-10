@@ -18,3 +18,7 @@ plan_de_prueba.md
 # Skills internos y guías (local, no versionar)
 .claude/skills/
 añadir_nuevo_usuario_mock.md
+
+# Planes de migración / validación (local)
+plan_migrar_langgraph.md
+plan_validacion_respuesta.md
