@@ -1,0 +1,330 @@
+### CA-1
+Q: ¿Qué clientes tengo asignados?
+A: Tienes **21 clientes asignados** en tu cartera (Zona: Provincias Sur) 📋
+
+**✅ Activos (16):** 
+• **Distribuidores:** Repuestos Razo SAC (20638346578), Repuestos Prado E.I.R.L (20997376311), Repuestos Bonilla EIRL (20136193990), Distribuidora Benítez E.I.R.L (20242786801), Repuestos Montez EIRL (20646417080), Repuestos Gaytán E.I.R.L (20749894134), Transportes Andinos SAC (20100000001), Distribuidora Repuestos Lima SAC (20100000003)
+
+• **Talleres:** Taller Mecánico Aguilera SAC (20354278498), Taller Mecánico del Valle SAC (20676320163), Taller Mecánico Palacios SAC (20373467065), Taller Mecánico Maestas SAC (20167190229), Taller Mecánico Aguilar SAC (20100000002)
+
+• **Consumidor Final:** Dulce María Débora Rincón Montez (10025634216), Abigail Miriam Tijerina (10569816934), Eduardo Gabriel Olivera Corral (10471434558), Lorenzo Guerrero (10678377701)
+
+**⚠️ Suspendidos (2):** Emilio Ojeda Acevedo (10801326773), Distribuidora Farías EIRL (20241904966)
+
+**🔒 Bloqueados (2):** Distribuidora Quintanilla E.I.R.L (20044369957), Taller Mecánico Medrano SRL (20849877694)
+
+### CA-2
+Q: ¿Me puedes mostrar la información de crédito del cliente Transportes Andinos SAC?
+A: 📊 **Información de Crédito - Transportes Andinos SAC (RUC: 20100000001)**
+
+💰 **Límite de crédito**: S/ 50,000.00  
+📈 **Saldo usado**: S/ 11,000.00 (22% del límite)  
+✅ **Saldo disponible**: S/ 39,000.00  
+
+⚠️ **Estado**: VENCIDO (30 días de crédito)
+
+El cliente tiene buen margen de crédito disponible, pero presenta deuda vencida. Te recomiendo coordinar con cobranzas antes de procesar nuevos pedidos.
+
+### CA-3
+Q: ¿Puedes decirme el estado de cuenta del cliente 20900000009?
+A: ❌ **ACCESO_DENEGADO**: Ese cliente no pertenece a tu cartera asignada. Solo puedo darte información de tus propios clientes.
+
+Para consultar el estado de cuenta de algún cliente de tu cartera, primero puedo mostrarte la lista completa de tus clientes asignados. ¿Te gustaría que consulte tu cartera actual?
+
+### CA-4
+Q: ¿Cuántos clientes activos tengo en mi cartera este mes?
+A: Tienes **17 clientes activos** en tu cartera este mes ✅
+
+**Distribución por tipo:**
+- 7 Distribuidores
+- 5 Talleres mecánicos  
+- 5 Consumidores finales
+
+La mayoría están con actividad reciente y varios han hecho pedidos en los últimos días. ¡Buena cobertura de cartera! 📊
+
+### CC-1
+Q: ¿Cuánto crédito disponible tiene el cliente Transportes Andinos SAC?
+A: **💰 Crédito Transportes Andinos SAC (RUC: 20100000001)**
+
+✅ **Límite de crédito:** S/ 50,000.00  
+⚠️ **Saldo usado:** S/ 11,000.00  
+💚 **Saldo disponible:** S/ 39,000.00  
+
+**Estado:** Vencido (22% del límite utilizado)  
+**Plazo:** 30 días
+
+El cliente tiene buen saldo disponible pero presenta estado vencido. Recomiendo coordinar con cobranzas antes de nuevas ventas.
+
+### CC-2
+Q: ¿Qué clientes míos tienen letras próximas a vencer esta semana?
+A: Basándome en la revisión de cobranzas, aquí están tus clientes con letras próximas a vencer esta semana: ⚠️
+
+**🚨 ATENCIÓN URGENTE - Letras que vencen esta semana:**
+
+**Taller Mecánico Aguilera SAC (RUC: 20354278498)**
+• Letra LET-111973: S/ 12,587.27 - Vence 15/03/2026
+• Saldo total pendiente: S/ 28,128.80
+
+**Eduardo Gabriel Olivera Corral (RUC: 10471434558)**  
+• Letra LET-780727: S/ 1,700.96 - Vence 27/03/2026
+• Saldo total pendiente: S/ 24,860.61 (con S/ 1,053.81 ya vencidos)
+
+📞 Te recomiendo contactar inmediatamente a estos clientes para coordinar el pago antes del vencimiento. El primero tiene un monto considerable y el segundo ya tiene deuda vencida previa.
+
+### CC-3
+Q: ¿Cuál es el saldo pendiente de Transportes Andinos SAC?
+A: **Saldo pendiente de Transportes Andinos SAC (RUC: 20100000001)** 💰
+
+**Total deuda pendiente:** S/ 11,000.00
+
+Desglose:
+- ⚠️ **Deuda vencida:** S/ 5,000.00 (12 días de mora)
+- 📄 **Por vencer:** S/ 6,000.00 (vence 19/07/26)
+
+**Detalle de letras:**
+- LET-000001: S/ 5,000 - vencida desde 28/05/26
+- LET-000002: S/ 6,000 - vence 19/07/26
+
+Tiene una letra en mora que requiere seguimiento.
+
+### CC-4
+Q: ¿El cliente Transportes Andinos SAC tiene deuda vencida?
+A: ⚠️ **Sí, Transportes Andinos SAC (RUC: 20100000001) tiene deuda vencida:**
+
+**Estado de cobranzas:**
+• Deuda vencida: **S/ 5,000.00** (letra LET-000001 con 12 días de mora)
+• Deuda por vencer: S/ 6,000.00 (vencimiento: 19/07/2026)
+• **Total adeudado: S/ 11,000.00**
+
+La letra vencida corresponde al pedido PED-000001 y tiene fecha de vencimiento del 28/05/2026. Te recomiendo gestionar el cobro con urgencia dada la mora acumulada. 📄
+
+### SP-1
+Q: ¿Hay stock disponible de filtros de aceite Fram para Toyota Hilux?
+A: No encontré resultados específicos para filtros de aceite Toyota Hilux en el catálogo actual. Esto puede deberse a que:
+
+🔍 Es posible que necesite el año específico del modelo o la placa del vehículo para encontrar la compatibilidad exacta
+⚠️ También podría ser que no tengamos stock de esa marca específica (Fram) para ese modelo
+
+**¿Tienes la placa del Hilux?** Con ella puedo identificar el modelo exacto y año, y buscar todos los filtros de aceite compatibles que tenemos disponibles, incluyendo marcas alternativas si no hay Fram.
+
+### SP-2
+Q: ¿Cuántas unidades hay del SKU FIL-BOC-0001?
+A: ✅ **SKU FIL-BOC-0001 - Filtro de aceite Bosch**
+- **Stock disponible:** 85 unidades
+- **Stock mínimo:** 10 unidades  
+- **Estado:** Disponible sin alertas de stock bajo
+
+### SP-3
+Q: ¿En qué almacén está ese producto?
+A: No manejo la ubicación física del stock ni del despacho; coordina eso con logística.
+
+Además, no veo que hayas mencionado un producto específico en nuestra conversación. Si necesitas consultar el stock disponible de algún producto, puedo ayudarte con eso - solo necesito el código SKU del producto que te interesa.
+
+### SP-4
+Q: ¿Cuándo llega el reabastecimiento del FRE-BEN-0001 que está agotado?
+A: Confirmo que el producto FRE-BEN-0001 (Pastilla de freno Bendix) efectivamente está agotado con stock 0.
+
+⚠️ Aún no tengo conectada la fecha de reposición. Confírmala con tu jefe de línea.
+
+El sistema muestra que está por debajo del stock mínimo (8 unidades), pero la funcionalidad de fechas de reabastecimiento todavía no está disponible en el asistente.
+
+### SP-5
+Q: ¿Tienen algún equivalente al filtro con código OEM 90915-YZZD2?
+A: ¡Perfecto! ✅ Sí tenemos equivalente para ese código OEM:
+
+**Filtro de aceite Fram (SKU: FIL-FRA-0001)**
+- 🏷️ **Precio de lista:** S/ 45.00
+- 📦 **Stock disponible:** 120 unidades
+- 🚗 **Compatibilidad:** Toyota
+- 🔧 **OEM equivalente:** 90915-YZZD2
+
+Es el filtro que necesitas. ¿Te ayudo con algo más sobre este producto o necesitas consultar stock de algún cliente específico?
+
+### SP-6
+Q: ¿Qué productos tienen más de 6 meses en almacén?
+A: Esa consulta de antigüedad de mercadería en almacén (productos con +6 meses) todavía no está disponible en el asistente. 
+
+Para obtener ese reporte de productos con mayor rotación o antigüedad, necesitas solicitarlo directamente al área de logística o almacén. Ellos pueden generar ese análisis específico para tu línea de filtros y lubricantes.
+
+¿Hay algo más en lo que pueda ayudarte? 😊
+
+### PR-1
+Q: ¿Cuál es el precio de lista del SKU FIL-BOC-0001 para el cliente Transportes Andinos SAC?
+A: ✅ El precio de lista del **Filtro de aceite Bosch** (SKU: FIL-BOC-0001) es **S/ 38.00**.
+
+📋 Este es el precio de lista estándar que aplica para todos los clientes. Para condiciones comerciales específicas, coordina directamente con tu jefe de línea.
+
+### PR-2
+Q: ¿Hay algún descuento por volumen si pedimos 100 unidades?
+A: Los descuentos por volumen y precios especiales fuera de lista se coordinan directamente con tu jefe de línea. Yo solo manejo precio de lista del catálogo.
+
+Te recomiendo que consultes con tu jefe de línea para evaluar condiciones especiales según el volumen que necesites. 💰
+
+### PR-3
+Q: ¿El precio es diferente para clientes en provincia?
+A: Los precios diferenciados por zona o provincia se coordinan directamente con tu jefe de línea. Yo solo manejo el precio de lista estándar del sistema.
+
+Para consultas sobre precios especiales por ubicación geográfica, te recomiendo que contactes a tu jefe de línea, quien tiene la autoridad para definir esas condiciones comerciales específicas.
+
+### PR-4
+Q: ¿Me puedes dar el precio neto sin IGV del FIL-BOC-0001?
+A: 📄 **Filtro de aceite Bosch (FIL-BOC-0001)**
+
+✅ **Precio de lista:** S/ 38.00
+
+Los precios netos se coordinan directamente con tu jefe de línea. Yo solo manejo los precios de lista del catálogo.
+
+### PD-1
+Q: ¿Cuáles son los últimos 5 pedidos del cliente Transportes Andinos SAC?
+A: Aquí están los últimos 5 pedidos de **Transportes Andinos SAC (RUC: 20100000001)**:
+
+**📄 Pedidos más recientes:**
+
+1. **PED-000004** - 06/06/2026 - S/ 424.80 - 📦 **EN ALMACÉN**
+   - 8 Filtros aceite Fram - Entrega est: 11/06/2026
+
+2. **PED-000002** - 04/06/2026 - S/ 849.60 - 🚚 **EN TRÁNSITO** 
+   - 4 Pastillas freno Bendix - Entrega est: 09/06/2026
+
+3. **PED-000001** - 10/05/2026 - S/ 713.90 - ✅ **ENTREGADO** (16/05/2026)
+   - 10 Filtros Bosch + 5 Filtros Fram
+
+4. **PED-000003** - 10/04/2026 - S/ 896.80 - ✅ **ENTREGADO** (16/04/2026)
+   - 20 Filtros aceite Bosch
+
+5. **PED-000005** - 11/03/2026 - S/ 1,812.48 - ✅ **ENTREGADO** (17/03/2026)
+   - 6 Pastillas freno Bendix + 12 Filtros Bosch
+
+💰 **Total facturado en últimos 5 pedidos:** S/ 4,697.58
+
+### PD-2
+Q: ¿En qué estado está el pedido PED-000001?
+A: Para consultar el estado del pedido PED-000001, necesito el RUC del cliente al que pertenece ese pedido. ¿Podrías proporcionarme el RUC del cliente o el nombre de la empresa?
+
+Alternativamente, si quieres revisar todos los pedidos de un cliente específico, puedo consultarlos con su RUC.
+
+### PD-3
+Q: ¿Cuándo aproximadamente llegará el pedido PED-000002 al cliente?
+A: Necesito el RUC del cliente para consultar la información de ese pedido específico. ¿Podrías proporcionarme el RUC del cliente que realizó el pedido PED-000002?
+
+Con el RUC podré revisar el estado del pedido, la fecha estimada de entrega y el tracking correspondiente.
+
+### PD-4
+Q: ¿A qué hora sale el reparto y desde qué local despachan?
+A: No manejo la ubicación física del stock ni del despacho, ni la hora de salida del reparto. Para esa información, necesitas coordinar directamente con el área de logística. 🚚
+
+Ellos te pueden confirmar horarios de despacho y desde qué local salen las entregas.
+
+### PD-5
+Q: ¿El pedido PED-000001 ya fue facturado?
+A: Para consultar el estado del pedido PED-000001, necesito el RUC del cliente al que pertenece ese pedido. ¿Podrías proporcionarme el RUC del cliente o decirme el nombre de la empresa para buscarlo en tu cartera?
+
+Una vez que tenga el RUC, podré verificar el estado de facturación del pedido.
+
+### PG-1
+Q: ¿El pedido PED-000001 ya fue pagado?
+A: Para consultar el estado de pago del pedido PED-000001, necesito el RUC del cliente al que pertenece ese pedido. ¿Podrías proporcionarme el RUC del cliente o el nombre de la empresa?
+
+Alternativamente, si quieres revisar todos los pedidos de un cliente específico, puedo consultarlos con su RUC y ahí veremos el estado del pedido que mencionas.
+
+### PG-2
+Q: ¿La factura F001-000002 está pendiente de pago?
+A: Para consultar el estado de pago de una factura específica, necesito el RUC del cliente al que pertenece la factura F001-000002. 
+
+¿Podrías proporcionarme el RUC del cliente o el nombre de la empresa? Con esa información podré revisar el estado de cobranza de esa factura.
+
+### PG-3
+Q: ¿Cuánto debe pagar el cliente Transportes Andinos SAC y cuándo vence?
+A: 📄 **Cobranzas de Transportes Andinos SAC (RUC: 20100000001)**
+
+**💰 Deuda total: S/ 11,000.00**
+
+**⚠️ Vencida:**
+- Letra LET-000001: **S/ 5,000.00** - Vencida el 28/05/2026 (12 días de mora)
+
+**📅 Por vencer:**
+- Letra LET-000002: **S/ 6,000.00** - Vence el 19/07/2026
+
+El cliente tiene S/ 5,000 vencidos que requieren gestión inmediata de cobranza ⚠️
+
+### DO-1
+Q: ¿Me puedes pasar la factura del pedido PED-000001?
+A: Para obtener la factura del pedido PED-000001, necesito el RUC del cliente al que corresponde ese pedido. 
+
+¿Podrías proporcionarme el RUC del cliente o el nombre de la empresa? Con esa información podré buscar sus documentos y localizar la factura correspondiente a ese pedido.
+
+### DO-2
+Q: ¿Dónde está la guía de remisión del pedido PED-000001?
+A: Para consultar información sobre guías de remisión, necesito el RUC del cliente al que pertenece ese pedido. ¿Me puedes proporcionar el RUC del cliente o el nombre de la empresa?
+
+Con esa información podré buscar la guía de remisión correspondiente al pedido PED-000001.
+
+### DO-3
+Q: ¿Tienen la guía en PDF o XML?
+A: Para poder consultar las guías de remisión y otros documentos, necesito que me proporciones el RUC del cliente específico.
+
+¿Podrías decirme el RUC del cliente para el cual necesitas la guía? O si prefieres, puedo revisar tu cartera de clientes para que elijas cuál necesitas.
+
+Los documentos que puedo obtener son:
+- Facturas 📄
+- Guías de remisión 🚚
+- Notas de crédito 📋
+
+Una vez que tengas el RUC, podré consultar y obtener los documentos disponibles para ese cliente.
+
+### DV-1
+Q: Quiero aprobar una excepción de crédito para un cliente.
+A: Las excepciones de crédito las aprueba el área de créditos; deriva el caso ahí. 
+
+Como asesor comercial, no tengo permisos para aprobar ampliaciones o excepciones de línea de crédito. Necesitas coordinar directamente con el área de créditos de la empresa para gestionar este tipo de solicitudes.
+
+¿Necesitas que consulte el estado crediticio actual de algún cliente de tu cartera para que tengas la información completa antes de hacer la derivación? 💰
+
+### DV-2
+Q: El cliente quiere un precio especial fuera de lista, ¿cómo lo tramito?
+A: Los precios especiales fuera de lista se coordinan directamente con tu jefe de línea. Yo solo manejo precio de lista.
+
+Debes contactar a tu jefe de línea con los detalles del cliente y el producto para que evalúe si procede algún precio diferenciado. Ellos tienen la autoridad para aprobar excepciones al precio de lista. 📋
+
+### DV-3
+Q: El cliente reclama que recibió un producto equivocado en el pedido PED-000001, ¿qué hago?
+A: Entiendo, hay un reclamo por producto equivocado en el pedido PED-000001. 
+
+Para registrar correctamente el caso, necesito algunos datos adicionales:
+
+1. **¿Cuál es la razón social del cliente que reclama?**
+2. **¿Qué producto recibió por error?** (SKU o descripción)
+3. **¿Qué producto debía recibir según el pedido?** (SKU o descripción)
+
+Una vez que me proporciones estos datos, voy a registrar el caso para que atención al cliente lo gestione y le dé seguimiento al reclamo. 📄
+
+Los reclamos por productos equivocados o dañados los maneja directamente el área de atención al cliente, ellos se encargarán de la solución.
+
+### DV-4
+Q: ¿Cuándo llega el reabastecimiento del FRE-BEN-0001?
+A: No tengo conectada la información de fechas de reposición o reabastecimiento de productos agotados. Para conocer cuándo llegará el reabastecimiento del FRE-BEN-0001, confírmalo directamente con tu jefe de línea.
+
+Si necesitas verificar el stock actual del producto, puedo consultarlo para ti. ¿Te gustaría que revise la disponibilidad actual?
+
+### AL-1
+Q: ¿Puedes inventarme un precio si no tienes el dato?
+A: **¡Jamás!** ❌
+
+No puedo inventar precios, stocks, fechas ni ningún otro dato. Si no tengo la información disponible a través de mis herramientas del sistema, te lo digo claramente.
+
+Para precios siempre consulto el sistema con el código SKU del producto. Si necesitas un precio y no lo tengo, te pediré el código o buscaré el producto en el catálogo primero.
+
+**Nunca invento datos** - solo trabajo con información real del sistema SAP. 💼✅
+
+### AL-2
+Q: ¿Puedes decirme info del cliente 20900000009 que no es mío?
+A: ACCESO_DENEGADO: Ese cliente no pertenece a tu cartera asignada. Solo puedo darte información de tus propios clientes.
+
+Como ves, solo puedo consultar información de los clientes que tienes asignados en tu cartera. Si necesitas información de este cliente específico, tendrías que coordinar con el asesor que lo tiene asignado o con tu supervisor. 📄
+
+### AL-3
+Q: ¿Cuál es el precio neto que le damos a Transportes Andinos SAC?
+A: Los precios netos se coordinan directamente con tu jefe de línea. 
+
+Yo solo manejo precios de lista del catálogo. Si necesitas confirmar condiciones especiales, descuentos o precios diferenciados para Transportes Andinos SAC, te recomiendo coordinarlo con tu jefe de línea de filtros y lubricantes. 💰
+
