@@ -7,11 +7,45 @@ Dos agentes de WhatsApp independientes sobre la misma infraestructura:
 - **Agente Vendedores**: asesores comerciales internos con acceso completo (precios netos, crédito, cobranzas)
 - **Agente Clientes**: talleres, distribuidores y consumidor final con acceso a información pública
 
-Canal de comunicación: **WhatsApp vía Evolution API**
+Canal de comunicación: **WhatsApp vía Kapso (WhatsApp Cloud API oficial)**
 Backend: **FastAPI + Python**
 LLM: **Claude API (claude-sonnet-4-20250514)**
 Base de datos: **PostgreSQL + pgvector**
 Sesiones: **Redis**
+
+---
+
+## ⚠️ Arquitectura real (estado actual — leer antes de tocar código)
+
+El resto de este documento es la **especificación original de construcción** y describe varias
+cosas que hoy son distintas. Lo realmente implementado es:
+
+- **Canal: Kapso**, NO Evolution API. El webhook (`webhooks/whatsapp.py`) recibe eventos
+  `whatsapp.message.received` de Kapso (payload en *batch*, firma HMAC-SHA256). El envío de
+  mensajes/imágenes es vía `shared/kapso.py`, no `shared/evolution.py`.
+
+- **Las tools NO usan MCP.** A pesar del nombre del proyecto ("railway mcp"), el agente usa el
+  **tool use NATIVO de la API de Claude** (`messages.create(tools=...)` en `shared/llm.py`) más
+  un **dispatch manual** en `orchestrator/router.py`. No hay servidores MCP. Las funciones de
+  `agents/` son wrappers locales que llaman al **Mock SAP por HTTP REST** (`shared/sap_client.py`).
+
+- **Datos: Mock SAP externo**, NO el mock interno con diccionarios que describe esta spec. La
+  fuente de datos es un servidor FastAPI aparte (repo `mock-sap-catusita`, desplegado en Railway:
+  `https://mock-sap-catusita-production.up.railway.app`). En prod se cambia `SAP_BASE_URL` por el SAP real.
+
+- **Estructura real del orquestador** (refactorizado, ya no es un solo `router.py`):
+  - `orchestrator/router.py` → `execute_tool` (dispatch) + `run_agent` (loop de tool-use)
+  - `orchestrator/tools.py` → schemas `TOOLS_VENDEDORES` / `TOOLS_CLIENTES`
+  - `orchestrator/prompts.py` → `SYSTEM_VENDEDOR` / `SYSTEM_CLIENTE`
+  - `orchestrator/access.py` → **control de acceso por cartera** (un asesor solo consulta clientes
+    de su cartera; se valida en código, no solo en el prompt) + resolución de nombre→RUC
+  - `orchestrator/context.py` → historial en Redis. (No existe `profile.py`.)
+
+- **Autenticación (`shared/auth.py`)**: asesores por número de WhatsApp (mapeados a un `vendedor_id`
+  del Mock SAP). En modo sandbox/mock, cualquier número entrante se autentica como asesor V001.
+
+- **Variables SAP reales**: `SAP_BASE_URL` y `SAP_API_KEY` (no las viejas `SAP_API_URL` /
+  `USE_SAP_MOCK` / `PLACA_API_URL` que aparecen más abajo en esta spec).
 
 ---
 
