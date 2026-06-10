@@ -48,12 +48,8 @@ def _historial_a_lc(historial: list) -> list:
     return lc
 
 
-async def run_agent_graph(mensaje: str, perfil: dict, historial: list) -> str:
-    """Equivalente a router.run_agent pero usando el grafo LangGraph.
-
-    Mismo contrato: recibe mensaje, perfil y historial (formato Redis),
-    devuelve la respuesta final como string.
-    """
+async def _invoke(mensaje: str, perfil: dict, historial: list) -> dict:
+    """Invoca el grafo y devuelve el estado final completo."""
     canal = "vendedor" if perfil.get("tipo") == "asesor" else "cliente"
     mensajes_lc = _historial_a_lc(historial) + [HumanMessage(content=mensaje)]
 
@@ -66,12 +62,31 @@ async def run_agent_graph(mensaje: str, perfil: dict, historial: list) -> str:
         "validacion": {},
         "intentos_validacion": 0,
     }
+    return await graph.ainvoke(state)
 
-    final = await graph.ainvoke(state)
 
-    # El último mensaje es la respuesta final del agente
+def _extraer_respuesta(final: dict) -> str:
     for msg in reversed(final["messages"]):
         if isinstance(msg, AIMessage) and msg.content:
             return msg.content if isinstance(msg.content, str) else str(msg.content)
-
     return "No pude procesar tu consulta en este momento. Inténtalo de nuevo."
+
+
+async def run_agent_graph(mensaje: str, perfil: dict, historial: list) -> str:
+    """Equivalente a router.run_agent. Devuelve la respuesta como string."""
+    final = await _invoke(mensaje, perfil, historial)
+    return _extraer_respuesta(final)
+
+
+async def run_agent_graph_full(
+    mensaje: str, perfil: dict, historial: list
+) -> tuple[str, list]:
+    """Como run_agent_graph pero también devuelve la lista media_pendiente.
+
+    Usado por el webhook para enviar imágenes (ej. tarjeta SUNARP) por WhatsApp.
+    Returns: (respuesta_texto, media_pendiente)
+    """
+    final = await _invoke(mensaje, perfil, historial)
+    respuesta = _extraer_respuesta(final)
+    media = final.get("media_pendiente") or []
+    return respuesta, media

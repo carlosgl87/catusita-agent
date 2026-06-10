@@ -40,12 +40,14 @@ from fastapi import APIRouter, Request, HTTPException
 from shared import auth
 from shared import kapso as kapso_mod
 from orchestrator import router as agent_router
+from orchestrator.graph import run_agent_graph_full
 from orchestrator import context
 from db import models
 
 router_wh = APIRouter()
 
 USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
+USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
 KAPSO_PHONE_NUMBER_ID = os.getenv("KAPSO_PHONE_NUMBER_ID", "")
 
 # Cuando agreguemos un número Kapso aparte para clientes, ponemos su
@@ -175,8 +177,13 @@ async def _procesar_item(item: dict) -> dict:
         f"conversation_id={conversation_id} historial={len(historial)} msgs"
     )
 
-    respuesta = await agent_router.run_agent(texto, perfil, historial)
-    print(f"[WEBHOOK] respuesta del router: {respuesta!r}")
+    if USE_LANGGRAPH:
+        respuesta, media_list = await run_agent_graph_full(texto, perfil, historial)
+    else:
+        respuesta = await agent_router.run_agent(texto, perfil, historial)
+        media_list = perfil.get("_media_pendiente", [])
+
+    print(f"[WEBHOOK] respuesta ({'LangGraph' if USE_LANGGRAPH else 'router'}): {respuesta!r}")
 
     # ----------------------------------------------------------------------
     # Persistir y enviar
@@ -201,7 +208,7 @@ async def _procesar_item(item: dict) -> dict:
     # ----------------------------------------------------------------------
     # Enviar media encolada por las tools (ej. foto de la tarjeta SUNARP)
     # ----------------------------------------------------------------------
-    for media in perfil.get("_media_pendiente", []):
+    for media in media_list:
         try:
             await kapso_mod.kapso.send_image_base64(
                 numero,
