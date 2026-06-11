@@ -10,6 +10,7 @@ Listas exportadas:
   - TOOLS_VENDEDOR_LC  (12 tools, acceso completo)
   - TOOLS_CLIENTE_LC   (8 tools, solo información pública)
 """
+import os
 import json
 import time
 import logging
@@ -50,7 +51,13 @@ def _to_command(resultado: dict, tool_call_id: str, extra: dict | None = None) -
     return Command(update=update)
 
 
+_USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
+
+
 async def _log(perfil: dict, name: str, t0: float) -> None:
+    # En modo mock no hay fila en `conversations`; loguear rompería la FK.
+    if _USE_AUTH_MOCK:
+        return
     try:
         ms = int((time.time() - t0) * 1000)
         await models.log_tool_usage(

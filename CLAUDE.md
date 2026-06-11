@@ -35,7 +35,7 @@ cosas que hoy son distintas. Lo realmente implementado es:
 - **Estructura del orquestador** (LangGraph):
   - `orchestrator/graph.py` → `StateGraph` compilado + `run_agent_graph` / `run_agent_graph_full`
   - `orchestrator/graph_state.py` → `AgentState` TypedDict (messages, perfil, canal, media_pendiente…)
-  - `orchestrator/lc_tools.py` → 14 `@tool` LC con `InjectedState`, acceso por cartera, `Command`
+  - `orchestrator/lc_tools.py` → 13 `@tool` LC (12 vendedor / 8 cliente) con `InjectedState`, acceso por cartera, `Command`
   - `orchestrator/nodes/agente.py` → `ChatAnthropic.bind_tools()` por canal + contexto inyectado
   - `orchestrator/nodes/pre_resolver.py` → extrae RUC/pedido/placa/SKU antes del LLM (sin IA)
   - `orchestrator/nodes/validar.py` → 4 reglas (privacidad, repregunta, no-tools, juez LLM)

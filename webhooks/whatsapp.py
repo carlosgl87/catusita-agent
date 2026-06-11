@@ -191,12 +191,16 @@ async def _procesar_item(item: dict) -> dict:
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
 
-    try:
-        await models.save_message(conversation_id, "user", texto)
-        await models.save_message(conversation_id, "assistant", respuesta)
-    except Exception as e:
-        logging.error(f"Error guardando en DB: {e}", exc_info=True)
-        print(f"Error guardando en DB (save_message): {e}")
+    # En modo mock la conversación no se persiste en la tabla `conversations`
+    # (conversation_id es un UUID local), así que guardar mensajes/tool_usage
+    # rompería la llave foránea. Solo persistimos a DB fuera de mock.
+    if not USE_AUTH_MOCK:
+        try:
+            await models.save_message(conversation_id, "user", texto)
+            await models.save_message(conversation_id, "assistant", respuesta)
+        except Exception as e:
+            logging.error(f"Error guardando en DB: {e}", exc_info=True)
+            print(f"Error guardando en DB (save_message): {e}")
 
     try:
         envio = await kapso_mod.kapso.send_message(numero, phone_number_id, respuesta)
