@@ -5,16 +5,31 @@ Topología completa (Fases 2-5):
                               └──(no)──► validar ──(ok)──► END
                                              └──(falla, quedan intentos)──► agente
 """
+import os
+import logging
+
 from langchain_core.messages import HumanMessage, AIMessage
 
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.errors import GraphRecursionError
 
 from orchestrator.graph_state import AgentState
 from orchestrator.nodes.agente import nodo_agente
 from orchestrator.nodes.pre_resolver import nodo_pre_resolver
 from orchestrator.nodes.validar import nodo_validar, MAX_REINTENTOS
 from orchestrator.lc_tools import TOOLS_VENDEDOR_LC, TOOLS_CLIENTE_LC
+
+# Tope de "super-steps" del grafo. Cada vuelta agente→tools cuesta 2 pasos;
+# pre_resolver y validar cuestan 1 cada uno. 15 ≈ ~6 rondas de tools + reintento,
+# de sobra para cualquier consulta legítima y corta cualquier loop descontrolado.
+# Si se alcanza, LangGraph lanza GraphRecursionError y respondemos con un fallback.
+RECURSION_LIMIT = int(os.getenv("LANGGRAPH_RECURSION_LIMIT", "15"))
+
+_FALLBACK_LOOP = (
+    "Tu consulta requirió demasiados pasos y no pude completarla. "
+    "¿Puedes reformularla o dividirla en partes más simples?"
+)
 
 
 def _routing_validar(state: AgentState) -> str:
@@ -74,7 +89,7 @@ async def _invoke(mensaje: str, perfil: dict, historial: list) -> dict:
         "validacion": {},
         "intentos_validacion": 0,
     }
-    return await graph.ainvoke(state)
+    return await graph.ainvoke(state, config={"recursion_limit": RECURSION_LIMIT})
 
 
 def _extraer_respuesta(final: dict) -> str:
@@ -86,7 +101,11 @@ def _extraer_respuesta(final: dict) -> str:
 
 async def run_agent_graph(mensaje: str, perfil: dict, historial: list) -> str:
     """Equivalente a router.run_agent. Devuelve la respuesta como string."""
-    final = await _invoke(mensaje, perfil, historial)
+    try:
+        final = await _invoke(mensaje, perfil, historial)
+    except GraphRecursionError:
+        logging.warning(f"LangGraph: recursion_limit ({RECURSION_LIMIT}) alcanzado.")
+        return _FALLBACK_LOOP
     return _extraer_respuesta(final)
 
 
@@ -98,7 +117,11 @@ async def run_agent_graph_full(
     Usado por el webhook para enviar imágenes (ej. tarjeta SUNARP) por WhatsApp.
     Returns: (respuesta_texto, media_pendiente)
     """
-    final = await _invoke(mensaje, perfil, historial)
+    try:
+        final = await _invoke(mensaje, perfil, historial)
+    except GraphRecursionError:
+        logging.warning(f"LangGraph: recursion_limit ({RECURSION_LIMIT}) alcanzado.")
+        return _FALLBACK_LOOP, []
     respuesta = _extraer_respuesta(final)
     media = final.get("media_pendiente") or []
     return respuesta, media
