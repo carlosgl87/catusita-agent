@@ -24,28 +24,37 @@ cosas que hoy son distintas. Lo realmente implementado es:
   `whatsapp.message.received` de Kapso (payload en *batch*, firma HMAC-SHA256). El envío de
   mensajes/imágenes es vía `shared/kapso.py`, no `shared/evolution.py`.
 
-- **Las tools NO usan MCP.** A pesar del nombre del proyecto ("railway mcp"), el agente usa el
-  **tool use NATIVO de la API de Claude** (`messages.create(tools=...)` en `shared/llm.py`) más
-  un **dispatch manual** en `orchestrator/router.py`. No hay servidores MCP. Las funciones de
-  `agents/` son wrappers locales que llaman al **Mock SAP por HTTP REST** (`shared/sap_client.py`).
+- **Orquestación: LangGraph** (rama `feat/langgraph`, activar con `USE_LANGGRAPH=true`).
+  El grafo tiene 4 nodos: `pre_resolver → agente ⇄ tools → validar`. El fallback al router
+  manual sigue disponible con `USE_LANGGRAPH=false` (default actual hasta confirmar sandbox).
+
+- **Las tools son objetos LangChain `@tool`** definidos en `orchestrator/lc_tools.py`.
+  El modelo (`ChatAnthropic`) se bindea con `.bind_tools()` y `ToolNode` ejecuta el dispatch.
+  No hay servidores MCP. Las funciones de `agents/` son wrappers locales que llaman al Mock SAP.
+
+- **Estructura del orquestador** (LangGraph):
+  - `orchestrator/graph.py` → `StateGraph` compilado + `run_agent_graph` / `run_agent_graph_full`
+  - `orchestrator/graph_state.py` → `AgentState` TypedDict (messages, perfil, canal, media_pendiente…)
+  - `orchestrator/lc_tools.py` → 14 `@tool` LC con `InjectedState`, acceso por cartera, `Command`
+  - `orchestrator/nodes/agente.py` → `ChatAnthropic.bind_tools()` por canal + contexto inyectado
+  - `orchestrator/nodes/pre_resolver.py` → extrae RUC/pedido/placa/SKU antes del LLM (sin IA)
+  - `orchestrator/nodes/validar.py` → 4 reglas (privacidad, repregunta, no-tools, juez LLM)
+  - `orchestrator/prompts.py` → `SYSTEM_VENDEDOR` / `SYSTEM_CLIENTE` (sin cambios)
+  - `orchestrator/access.py` → control de acceso por cartera (sin cambios)
+  - `orchestrator/context.py` → historial en Redis (sin cambios)
+  - `orchestrator/router.py` → fallback manual (se retira cuando el sandbox confirme)
 
 - **Datos: Mock SAP externo**, NO el mock interno con diccionarios que describe esta spec. La
   fuente de datos es un servidor FastAPI aparte (repo `mock-sap-catusita`, desplegado en Railway:
   `https://mock-sap-catusita-production.up.railway.app`). En prod se cambia `SAP_BASE_URL` por el SAP real.
 
-- **Estructura real del orquestador** (refactorizado, ya no es un solo `router.py`):
-  - `orchestrator/router.py` → `execute_tool` (dispatch) + `run_agent` (loop de tool-use)
-  - `orchestrator/tools.py` → schemas `TOOLS_VENDEDORES` / `TOOLS_CLIENTES`
-  - `orchestrator/prompts.py` → `SYSTEM_VENDEDOR` / `SYSTEM_CLIENTE`
-  - `orchestrator/access.py` → **control de acceso por cartera** (un asesor solo consulta clientes
-    de su cartera; se valida en código, no solo en el prompt) + resolución de nombre→RUC
-  - `orchestrator/context.py` → historial en Redis. (No existe `profile.py`.)
-
 - **Autenticación (`shared/auth.py`)**: asesores por número de WhatsApp (mapeados a un `vendedor_id`
   del Mock SAP). En modo sandbox/mock, cualquier número entrante se autentica como asesor V001.
 
-- **Variables SAP reales**: `SAP_BASE_URL` y `SAP_API_KEY` (no las viejas `SAP_API_URL` /
-  `USE_SAP_MOCK` / `PLACA_API_URL` que aparecen más abajo en esta spec).
+- **Variables de entorno clave**:
+  - `SAP_BASE_URL`, `SAP_API_KEY` (no las viejas `SAP_API_URL` / `USE_SAP_MOCK`)
+  - `USE_AUTH_MOCK=true` → sandbox: cualquier número → V001
+  - `USE_LANGGRAPH=true` → activa el grafo LangGraph (default: false = router manual)
 
 ---
 
