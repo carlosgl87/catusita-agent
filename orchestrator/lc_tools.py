@@ -276,7 +276,7 @@ async def identificar_vehiculo(
     state: Annotated[dict, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """Identifica marca, modelo y año de un vehículo por su placa o VIN. Devuelve también repuestos compatibles disponibles."""
+    """Busca en el CATÁLOGO INTERNO los repuestos compatibles con un vehículo a partir de su placa o VIN (datos de catálogo, no oficiales). NO uses esta tool para saber 'qué auto es' una placa: para identificar el vehículo de una placa peruana usa consultar_placa_sunarp. Usa esta SOLO cuando ya sabes el vehículo y quieres ver qué repuestos le calzan."""
     perfil = state["perfil"]
     t0 = time.time()
     resultado = await vehicle.identificar_vehiculo(placa_o_vin)
@@ -290,7 +290,7 @@ async def consultar_placa_sunarp(
     state: Annotated[dict, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """Consulta oficial en SUNARP por placa peruana. Tarda 20-60s, avisa al usuario que estás consultando. El resultado trae los datos EN TEXTO en 'datos_vehiculo_texto'. SIEMPRE preséntale esos datos al usuario por escrito. La FOTO se envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónaselo)."""
+    """ÚSALA SIEMPRE que pregunten qué vehículo es una placa peruana, a quién pertenece, o por los datos de un auto/moto por su placa (ej. '¿qué auto es la placa F9N562?', 'identifícame la placa ABC123'). Es la consulta OFICIAL en SUNARP en vivo y funciona para cualquier placa. Tarda 20-60s: avisa al usuario que estás consultando. El resultado trae los datos EN TEXTO en 'datos_vehiculo_texto'. SIEMPRE preséntale esos datos al usuario por escrito. La FOTO se envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónaselo)."""
     perfil = state["perfil"]
     t0 = time.time()
     resultado = await vehicle.consultar_placa_sunarp(placa.strip().upper())
