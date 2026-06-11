@@ -274,6 +274,16 @@ async def webhook_whatsapp(request: Request):
         return {"status": "ignored", "reason": f"event {tipo_evento}"}
 
     # ----------------------------------------------------------------------
+    # [2.5] IDEMPOTENCIA: si Kapso reenvía el mismo webhook (porque tardamos
+    #       en responderle el 200), NO lo reprocesamos. Sin esto, una consulta
+    #       lenta (ej. SUNARP caído) hace que Kapso reintente y cada reintento
+    #       dispare otra ejecución del agente → decenas de respuestas repetidas.
+    # ----------------------------------------------------------------------
+    if idempotency_key and await context.ya_procesado(idempotency_key):
+        print(f"[WEBHOOK] idempotente: {idempotency_key!r} ya procesado, ignorando")
+        return {"status": "ignored", "reason": "duplicate idempotency_key"}
+
+    # ----------------------------------------------------------------------
     # [3] El payload puede venir en batch (data: [ {...}, ... ]) o como un
     #     único objeto en la raíz. Normalizamos a una lista y procesamos cada
     #     mensaje por separado.

@@ -292,6 +292,19 @@ async def consultar_placa_sunarp(
 ) -> Command:
     """ÚSALA SIEMPRE que pregunten qué vehículo es una placa peruana, a quién pertenece, o por los datos de un auto/moto por su placa (ej. '¿qué auto es la placa F9N562?', 'identifícame la placa ABC123'). Es la consulta OFICIAL en SUNARP en vivo y funciona para cualquier placa. Tarda 20-60s: avisa al usuario que estás consultando. El resultado trae los datos EN TEXTO en 'datos_vehiculo_texto'. SIEMPRE preséntale esos datos al usuario por escrito. La FOTO se envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónaselo)."""
     perfil = state["perfil"]
+
+    # Kill switch: si SUNARP está caído, deshabilitar la consulta evita que el
+    # agente se cuelgue esperando y devuelve una respuesta inmediata.
+    # Activar con SUNARP_ENABLED=false en las env vars de Railway.
+    if os.getenv("SUNARP_ENABLED", "true").lower() != "true":
+        return _to_command({
+            "error": "SUNARP_DESHABILITADO",
+            "mensaje": (
+                "La consulta de placas en SUNARP está temporalmente fuera de servicio. "
+                "Informa al usuario que lo intente más tarde y NO reintentes esta tool."
+            ),
+        }, tool_call_id)
+
     t0 = time.time()
     resultado = await vehicle.consultar_placa_sunarp(placa.strip().upper())
 

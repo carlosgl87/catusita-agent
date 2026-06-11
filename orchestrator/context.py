@@ -50,3 +50,21 @@ async def clear_history(numero: str):
         await r.delete(_key(numero))
     except Exception:
         pass
+
+
+async def ya_procesado(idempotency_key: str, ttl: int = 600) -> bool:
+    """Idempotencia: True si esta key ya se procesó (y entonces hay que ignorarla).
+
+    Usa SET NX en Redis: la primera vez setea la marca y devuelve False
+    (procesar); cualquier reintento de Kapso con la misma key encuentra la
+    marca ya puesta y devuelve True (ignorar). Evita que un webhook reenviado
+    dispare múltiples ejecuciones del agente (spam de respuestas).
+    """
+    if not idempotency_key:
+        return False
+    try:
+        r = await _get_redis()
+        seteado = await r.set(f"idemp:{idempotency_key}", "1", ex=ttl, nx=True)
+        return not seteado   # si no se pudo setear, ya existía → ya procesado
+    except Exception:
+        return False  # ante fallo de Redis, no bloquear (mejor procesar que perder)
