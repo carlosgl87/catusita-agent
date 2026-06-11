@@ -33,6 +33,7 @@ Headers:
 import os
 import uuid
 import json
+import asyncio
 import logging
 
 from fastapi import APIRouter, Request, HTTPException
@@ -45,6 +46,10 @@ from orchestrator import context
 from db import models
 
 router_wh = APIRouter()
+
+# Referencias fuertes a las tareas en segundo plano para que el GC no las
+# recoja a media ejecución (asyncio solo guarda weakrefs a las tasks).
+_tareas_bg: set = set()
 
 USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
@@ -285,22 +290,41 @@ async def webhook_whatsapp(request: Request):
 
     # ----------------------------------------------------------------------
     # [3] El payload puede venir en batch (data: [ {...}, ... ]) o como un
-    #     único objeto en la raíz. Normalizamos a una lista y procesamos cada
-    #     mensaje por separado.
+    #     único objeto en la raíz. Normalizamos a una lista.
     # ----------------------------------------------------------------------
     items = data.get("data")
     if not isinstance(items, list):
         items = [data]
 
-    resultados = []
+    # ----------------------------------------------------------------------
+    # [4] ACK INMEDIATO + procesamiento en segundo plano.
+    #
+    #     Kapso espera el 200 OK en pocos segundos; si tardamos (porque el
+    #     agente llama una tool lenta, ej. SUNARP), Kapso da por fallida la
+    #     entrega y REENVÍA el webhook → cada reenvío genera otra respuesta
+    #     al usuario (el spam que veíamos). La solución correcta es responder
+    #     200 al instante y hacer el trabajo del agente aparte, de modo que
+    #     Kapso nunca tenga motivo para reintentar.
+    # ----------------------------------------------------------------------
+    tarea = asyncio.create_task(_procesar_items_bg(items))
+    _tareas_bg.add(tarea)
+    tarea.add_done_callback(_tareas_bg.discard)
+
+    return {"status": "accepted"}
+
+
+async def _procesar_items_bg(items: list) -> None:
+    """Procesa los mensajes del batch fuera del ciclo request/response.
+
+    Se ejecuta después de haberle devuelto el 200 a Kapso, así una tool lenta
+    nunca provoca reintentos del webhook. Cada item se aísla en su try/except
+    para que un error en uno no tumbe a los demás.
+    """
     for item in items:
         if not isinstance(item, dict):
             continue
         try:
-            resultados.append(await _procesar_item(item))
+            await _procesar_item(item)
         except Exception as e:
             logging.error(f"Error procesando item del webhook: {e}", exc_info=True)
-            print(f"[WEBHOOK] ERROR procesando item: {e}")
-            resultados.append({"status": "error"})
-
-    return {"status": "ok", "items": resultados}
+            print(f"[WEBHOOK] ERROR procesando item (bg): {e}")
