@@ -1,34 +1,46 @@
-"""Grafo LangGraph del agente Catusita (equivalente 1:1 al run_agent actual).
+"""Grafo LangGraph del agente Catusita.
 
-Topología mínima (Fase 2):
-  START → agente ──(tool_calls?)──► tools ──► agente
-                └──(no)──► END
-
-Fases siguientes agregan nodos pre_resolver (Fase 4) y validar (Fase 5).
+Topología completa (Fases 2-5):
+  START → pre_resolver → agente ──(tool_calls?)──► tools ──► agente
+                              └──(no)──► validar ──(ok)──► END
+                                             └──(falla, quedan intentos)──► agente
 """
 from langchain_core.messages import HumanMessage, AIMessage
 
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from orchestrator.graph_state import AgentState
 from orchestrator.nodes.agente import nodo_agente
+from orchestrator.nodes.pre_resolver import nodo_pre_resolver
+from orchestrator.nodes.validar import nodo_validar, MAX_REINTENTOS
 from orchestrator.lc_tools import TOOLS_VENDEDOR_LC, TOOLS_CLIENTE_LC
 
 
+def _routing_validar(state: AgentState) -> str:
+    """Decide si la validación pasó (→ END) o debe reintentar (→ agente)."""
+    val = state.get("validacion") or {}
+    intentos = state.get("intentos_validacion", 0)
+    if val.get("ok") is False and intentos <= MAX_REINTENTOS:
+        return "agente"
+    return END
+
+
 def _build_graph() -> StateGraph:
-    # Todos los tools en una lista deduplicada para que ToolNode los encuentre.
-    # El nodo agente filtra qué subset bindea según el canal.
     all_tools = list({t.name: t for t in TOOLS_VENDEDOR_LC + TOOLS_CLIENTE_LC}.values())
     tool_node = ToolNode(all_tools)
 
     g = StateGraph(AgentState)
+    g.add_node("pre_resolver", nodo_pre_resolver)
     g.add_node("agente", nodo_agente)
     g.add_node("tools", tool_node)
+    g.add_node("validar", nodo_validar)
 
-    g.set_entry_point("agente")
-    g.add_conditional_edges("agente", tools_condition)
+    g.set_entry_point("pre_resolver")
+    g.add_edge("pre_resolver", "agente")
+    g.add_conditional_edges("agente", tools_condition, {"tools": "tools", END: "validar"})
     g.add_edge("tools", "agente")
+    g.add_conditional_edges("validar", _routing_validar, {"agente": "agente", END: END})
 
     return g
 
