@@ -1,5 +1,6 @@
 """Nodo 'agente': llama a Claude con las tools del canal y agrega el AIMessage al estado."""
 import os
+from datetime import datetime, timezone, timedelta
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -8,6 +9,19 @@ from orchestrator.lc_tools import TOOLS_VENDEDOR_LC, TOOLS_CLIENTE_LC
 from orchestrator.prompts import SYSTEM_VENDEDOR, SYSTEM_CLIENTE
 
 _MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+
+# Perú no usa horario de verano: UTC-5 fijo todo el año (sin dependencia de tzdata).
+_PERU_TZ = timezone(timedelta(hours=-5))
+_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+          "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _fecha_hora_peru() -> str:
+    """Fecha y hora actual de Perú, lista para inyectar al prompt."""
+    ahora = datetime.now(_PERU_TZ)
+    return (f"{_DIAS[ahora.weekday()]} {ahora.day} de {_MESES[ahora.month - 1]} "
+            f"de {ahora.year}, {ahora:%H:%M} (hora de Perú)")
 
 # Dos modelos pre-bindeados para evitar re-bindear en cada llamada.
 # Se crean lazy al primer uso del nodo.
@@ -52,6 +66,10 @@ async def nodo_agente(state: AgentState) -> dict:
         )
     else:
         system_text = SYSTEM_CLIENTE
+
+    # Fecha/hora actual de Perú: el agente la necesita para razonar con
+    # vencimientos de letras, "esta semana", "último pedido", etc.
+    system_text = f"{system_text}\n\nFecha y hora actual: {_fecha_hora_peru()}."
 
     mensajes = list(state["messages"])
 
