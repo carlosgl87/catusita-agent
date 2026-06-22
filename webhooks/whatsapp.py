@@ -53,6 +53,7 @@ _tareas_bg: set = set()
 
 USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+PERSIST_TO_DB = os.getenv("PERSIST_TO_DB", "false").lower() == "true"
 KAPSO_PHONE_NUMBER_ID = os.getenv("KAPSO_PHONE_NUMBER_ID", "")
 
 # Cuando agreguemos un número Kapso aparte para clientes, ponemos su
@@ -63,11 +64,12 @@ KAPSO_PHONE_NUMBER_ID_CLIENTES = os.getenv("KAPSO_PHONE_NUMBER_ID_CLIENTES", "")
 async def _abrir_conversacion(perfil: dict, agente_tipo: str, numero: str) -> str:
     """
     Crea un registro en la tabla conversations y devuelve su id.
-    En modo mock (o si la BD falla) genera un UUID local para no romper el flujo.
+    Si la BD falla genera un UUID local para no romper el flujo.
+    En mock mode pasa user_id=None (la columna es nullable).
     """
-    if not USE_AUTH_MOCK:
+    if PERSIST_TO_DB or not USE_AUTH_MOCK:
         try:
-            user_id = perfil.get("user_id") or perfil.get("id")
+            user_id = None if USE_AUTH_MOCK else (perfil.get("user_id") or perfil.get("id"))
             return await models.create_conversation(user_id, agente_tipo, numero)
         except Exception as e:
             logging.error(f"Error guardando en DB: {e}", exc_info=True)
@@ -196,10 +198,7 @@ async def _procesar_item(item: dict) -> dict:
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
 
-    # En modo mock la conversación no se persiste en la tabla `conversations`
-    # (conversation_id es un UUID local), así que guardar mensajes/tool_usage
-    # rompería la llave foránea. Solo persistimos a DB fuera de mock.
-    if not USE_AUTH_MOCK:
+    if PERSIST_TO_DB or not USE_AUTH_MOCK:
         try:
             await models.save_message(conversation_id, "user", texto)
             await models.save_message(conversation_id, "assistant", respuesta)
