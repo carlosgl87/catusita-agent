@@ -40,6 +40,7 @@ from fastapi import APIRouter, Request, HTTPException
 
 from shared import auth
 from shared import kapso as kapso_mod
+from shared import waha as waha_mod
 from orchestrator import router as agent_router
 from orchestrator.graph import run_agent_graph_full
 from orchestrator import context
@@ -51,9 +52,13 @@ router_wh = APIRouter()
 # recoja a media ejecución (asyncio solo guarda weakrefs a las tasks).
 _tareas_bg: set = set()
 
-USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
-USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
-PERSIST_TO_DB = os.getenv("PERSIST_TO_DB", "false").lower() == "true"
+USE_AUTH_MOCK  = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
+USE_LANGGRAPH  = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+PERSIST_TO_DB  = os.getenv("PERSIST_TO_DB", "false").lower() == "true"
+# WHATSAPP_PROVIDER=waha  →  usa WAHA para enviar mensajes
+# WHATSAPP_PROVIDER=kapso →  usa Kapso (default)
+WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "kapso").lower()
+
 KAPSO_PHONE_NUMBER_ID = os.getenv("KAPSO_PHONE_NUMBER_ID", "")
 
 # Cuando agreguemos un número Kapso aparte para clientes, ponemos su
@@ -327,3 +332,153 @@ async def _procesar_items_bg(items: list) -> None:
         except Exception as e:
             logging.error(f"Error procesando item del webhook: {e}", exc_info=True)
             print(f"[WEBHOOK] ERROR procesando item (bg): {e}")
+
+
+# ---------------------------------------------------------------------------
+# Selector de proveedor de mensajería
+# ---------------------------------------------------------------------------
+
+def _messenger():
+    """Devuelve el cliente activo según WHATSAPP_PROVIDER."""
+    if WHATSAPP_PROVIDER == "waha":
+        return waha_mod.waha
+    return kapso_mod.kapso
+
+
+# ---------------------------------------------------------------------------
+# Webhook de WAHA
+# ---------------------------------------------------------------------------
+
+async def _procesar_item_waha(data: dict) -> dict:
+    """
+    Normaliza el payload de WAHA y lo procesa con la misma lógica interna.
+
+    Formato WAHA (versión 2026.x):
+    {
+      "event": "message",
+      "session": "default",
+      "payload": {
+        "id": "...",
+        "from": "51940351180@c.us",
+        "fromMe": false,
+        "body": "Hola",
+        "type": "chat"
+      }
+    }
+    """
+    event   = data.get("event", "")
+    payload = data.get("payload") or {}
+
+    # Solo mensajes entrantes de texto
+    if event != "message":
+        print(f"[WAHA] ignorado: evento {event!r}")
+        return {"status": "ignored", "reason": f"event {event}"}
+
+    if payload.get("fromMe"):
+        print("[WAHA] ignorado: fromMe=true")
+        return {"status": "ignored", "reason": "fromMe"}
+
+    tipo = payload.get("type", "")
+    if tipo not in ("chat", "text", ""):
+        print(f"[WAHA] ignorado: tipo {tipo!r} (no es texto)")
+        return {"status": "ignored", "reason": f"type {tipo}"}
+
+    numero = (payload.get("from") or "").split("@")[0].lstrip("+")
+    texto  = payload.get("body") or ""
+
+    print(f"[WAHA] numero={numero!r} texto={texto!r}")
+
+    if not texto or not numero:
+        return {"status": "ignored", "reason": "no text or number"}
+
+    # Reutilizamos toda la lógica del agente — phone_number_id vacío porque
+    # WAHA no tiene ese concepto (usamos session en su lugar).
+    agente_tipo = "vendedor"  # por ahora solo el canal de vendedores
+    perfil = await auth.get_user_profile(numero, agente_tipo)
+    print(f"[WAHA] perfil: {perfil}")
+
+    if not perfil.get("autenticado"):
+        await _messenger().send_message(numero, "", perfil.get("mensaje", ""))
+        return {"status": "auth_required"}
+
+    if texto.strip().lower() in ("reiniciar", "reset", "nueva conversacion"):
+        await context.clear_history(numero)
+        await _messenger().send_message(numero, "", "Conversación reiniciada. ¿En qué puedo ayudarte?")
+        return {"status": "ok"}
+
+    conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
+    perfil["conversation_id"] = conversation_id
+    perfil["numero"] = numero
+    perfil["phone_number_id"] = ""
+
+    historial = await context.get_history(numero)
+
+    if USE_LANGGRAPH:
+        respuesta, media_list = await run_agent_graph_full(texto, perfil, historial)
+    else:
+        respuesta = await agent_router.run_agent(texto, perfil, historial)
+        media_list = perfil.get("_media_pendiente", [])
+
+    await context.save_message(numero, "user", texto)
+    await context.save_message(numero, "assistant", respuesta)
+
+    if PERSIST_TO_DB or not USE_AUTH_MOCK:
+        try:
+            await models.save_message(conversation_id, "user", texto)
+            await models.save_message(conversation_id, "assistant", respuesta)
+        except Exception as e:
+            logging.error(f"Error guardando en DB (WAHA): {e}", exc_info=True)
+
+    try:
+        await _messenger().send_message(numero, "", respuesta)
+        print(f"[WAHA] respuesta enviada a {numero}")
+    except Exception as e:
+        logging.error(f"Error enviando por WAHA: {e}", exc_info=True)
+        print(f"[WAHA] ERROR enviando: {e}")
+
+    for media in media_list:
+        try:
+            await _messenger().send_image_base64(
+                numero, "",
+                media["imagen_base64"],
+                caption=media.get("caption", ""),
+                filename=media.get("filename", "imagen.png"),
+            )
+        except Exception as e:
+            print(f"[WAHA] ERROR enviando imagen: {e}")
+
+    return {"status": "ok"}
+
+
+@router_wh.post("/waha")
+async def webhook_waha(request: Request):
+    """Recibe eventos de WAHA (message, message.ack, session.status, etc.)."""
+    raw_body = await request.body()
+
+    # Verificación simple por API key en header (opcional pero recomendado)
+    waha_key = request.headers.get("X-Api-Key", "")
+    expected = os.getenv("WAHA_WEBHOOK_TOKEN", "")
+    if expected and waha_key != expected:
+        print(f"[WAHA] token inválido: {waha_key!r}")
+        raise HTTPException(status_code=401, detail="invalid token")
+
+    try:
+        data = json.loads(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid json")
+
+    print(f"[WAHA] evento recibido: {data.get('event')!r}")
+
+    tarea = asyncio.create_task(_procesar_item_waha_bg(data))
+    _tareas_bg.add(tarea)
+    tarea.add_done_callback(_tareas_bg.discard)
+
+    return {"status": "accepted"}
+
+
+async def _procesar_item_waha_bg(data: dict) -> None:
+    try:
+        await _procesar_item_waha(data)
+    except Exception as e:
+        logging.error(f"Error procesando evento WAHA: {e}", exc_info=True)
+        print(f"[WAHA] ERROR en background: {e}")
