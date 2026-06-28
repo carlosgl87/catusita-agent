@@ -383,12 +383,13 @@ async def _procesar_item_waha(data: dict) -> dict:
         print(f"[WAHA] ignorado: tipo {tipo!r} (no es texto)")
         return {"status": "ignored", "reason": f"type {tipo}"}
 
-    numero = (payload.get("from") or "").split("@")[0].lstrip("+")
-    texto  = payload.get("body") or ""
+    from_field = payload.get("from") or ""          # ej. "51940351180@c.us" o "111@lid"
+    numero     = from_field.split("@")[0].lstrip("+")   # para auth y Redis
+    texto      = payload.get("body") or ""
 
-    print(f"[WAHA] numero={numero!r} texto={texto!r}")
+    print(f"[WAHA] from={from_field!r} numero={numero!r} texto={texto!r}")
 
-    if not texto or not numero:
+    if not texto or not from_field:
         return {"status": "ignored", "reason": "no text or number"}
 
     # Reutilizamos toda la lógica del agente — phone_number_id vacío porque
@@ -398,12 +399,12 @@ async def _procesar_item_waha(data: dict) -> dict:
     print(f"[WAHA] perfil: {perfil}")
 
     if not perfil.get("autenticado"):
-        await _messenger().send_message(numero, "", perfil.get("mensaje", ""))
+        await _messenger().send_message(from_field, "", perfil.get("mensaje", ""))
         return {"status": "auth_required"}
 
     if texto.strip().lower() in ("reiniciar", "reset", "nueva conversacion"):
         await context.clear_history(numero)
-        await _messenger().send_message(numero, "", "Conversación reiniciada. ¿En qué puedo ayudarte?")
+        await _messenger().send_message(from_field, "", "Conversación reiniciada. ¿En qué puedo ayudarte?")
         return {"status": "ok"}
 
     conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
@@ -430,8 +431,8 @@ async def _procesar_item_waha(data: dict) -> dict:
             logging.error(f"Error guardando en DB (WAHA): {e}", exc_info=True)
 
     try:
-        await _messenger().send_message(numero, "", respuesta)
-        print(f"[WAHA] respuesta enviada a {numero}")
+        await _messenger().send_message(from_field, "", respuesta)
+        print(f"[WAHA] respuesta enviada a {from_field!r}")
     except Exception as e:
         logging.error(f"Error enviando por WAHA: {e}", exc_info=True)
         print(f"[WAHA] ERROR enviando: {e}")
@@ -439,7 +440,7 @@ async def _procesar_item_waha(data: dict) -> dict:
     for media in media_list:
         try:
             await _messenger().send_image_base64(
-                numero, "",
+                from_field, "",
                 media["imagen_base64"],
                 caption=media.get("caption", ""),
                 filename=media.get("filename", "imagen.png"),

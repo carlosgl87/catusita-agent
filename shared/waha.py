@@ -26,8 +26,14 @@ def _headers() -> dict:
 
 
 def _chat_id(numero: str) -> str:
-    """Convierte '51940351180' → '51940351180@c.us'."""
-    n = numero.lstrip("+").split("@")[0]
+    """
+    Convierte un número a chatId válido para WAHA.
+    Si ya tiene @ (ej. '51940351180@c.us' o '111621938671767@lid') lo devuelve tal cual.
+    Si es solo dígitos, agrega @c.us (y el prefijo 51 si falta).
+    """
+    if "@" in numero:
+        return numero
+    n = numero.lstrip("+")
     if not n.startswith("51"):
         n = "51" + n
     return f"{n}@c.us"
