@@ -394,10 +394,14 @@ async def _procesar_item_waha(data: dict) -> dict:
         print("[WAHA] ignorado: no from", flush=True)
         return {"status": "ignored", "reason": "no from"}
 
-    # ── Respuesta de Yahuar: NO corre el agente, reenvía al usuario original ──
-    yahuar_num = yahuar_mod.YAHUAR_NUMBER
-    if numero == yahuar_num or numero.endswith(yahuar_num):
-        print(f"[WAHA] mensaje de Yahuar detectado", flush=True)
+    # ── Respuesta de Yahuar ──────────────────────────────────────────────────
+    # Yahuar puede tener un LID diferente a su número de teléfono, así que
+    # en vez de comparar por número comparamos por contexto: si hay una consulta
+    # pendiente en Redis Y el mensaje NO viene del usuario que hizo la consulta,
+    # es la respuesta de Yahuar.
+    pendiente_peek = await yahuar_mod.peek_pendiente()
+    if pendiente_peek and from_field != pendiente_peek.get("from_field"):
+        print(f"[WAHA] respuesta de Yahuar detectada por Redis (sender={from_field!r})", flush=True)
         return await _manejar_respuesta_yahuar(payload)
 
     if not texto:

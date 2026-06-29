@@ -360,11 +360,22 @@ async def consultar_placa_yahuar(
     perfil     = state["perfil"]
     from_field = perfil.get("from_field") or perfil.get("numero", "")
     t0 = time.time()
+
+    # Serialización: si ya hay una consulta en vuelo, no mandar otra
+    existente = await yahuar_mod.peek_pendiente()
+    if existente:
+        resultado = {
+            "placa": existente.get("placa", placa).upper(),
+            "mensaje": "Ya hay una consulta de placa en proceso. La respuesta llegará en momentos al chat. NO vuelvas a llamar este tool.",
+        }
+        await _log(perfil, "consultar_placa_yahuar", t0)
+        return _to_command(resultado, tool_call_id)
+
     try:
         await yahuar_mod.consultar_placa(placa.strip().upper(), from_field)
         resultado = {
             "placa": placa.strip().upper(),
-            "mensaje": f"Consulté la placa {placa.strip().upper()} con Yahuar. La respuesta llega en unos 30 segundos directamente al chat.",
+            "mensaje": f"Consulta enviada a Yahuar para la placa {placa.strip().upper()}. La respuesta llega en ~30 segundos directamente al chat. NO llames este tool de nuevo.",
         }
     except Exception as e:
         logging.error(f"Error consultando Yahuar: {e}")

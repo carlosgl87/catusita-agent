@@ -31,6 +31,13 @@ async def consultar_placa(placa: str, from_field: str) -> None:
     await waha_mod.waha.send_message(YAHUAR_CHAT_ID, "", placa.upper())
 
 
+async def peek_pendiente() -> dict | None:
+    """Lee la consulta pendiente SIN eliminarla."""
+    r = await _get_redis()
+    raw = await r.get(PENDING_KEY)
+    return json.loads(raw) if raw else None
+
+
 async def get_pendiente() -> dict | None:
     """
     Obtiene y elimina la consulta pendiente de Redis.
