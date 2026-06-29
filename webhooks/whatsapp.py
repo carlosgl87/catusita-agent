@@ -379,22 +379,16 @@ async def _procesar_item_waha(data: dict) -> dict:
         print("[WAHA] ignorado: fromMe=true")
         return {"status": "ignored", "reason": "fromMe"}
 
-    tipo = payload.get("type", "")
-    if tipo not in ("chat", "text", ""):
-        print(f"[WAHA] ignorado: tipo {tipo!r} (no es texto)")
-        return {"status": "ignored", "reason": f"type {tipo}"}
-
-    from_field = payload.get("from") or ""          # ej. "51940351180@c.us" o "111@lid"
-    numero     = from_field.split("@")[0].lstrip("+")   # para auth y Redis
+    from_field = payload.get("from") or ""
+    numero     = from_field.split("@")[0].lstrip("+")
     texto      = payload.get("body") or ""
-
-    print(f"[WAHA] from={from_field!r} numero={numero!r} texto={texto!r}", flush=True)
+    tipo       = payload.get("type", "")
 
     if not from_field:
         print("[WAHA] ignorado: no from", flush=True)
         return {"status": "ignored", "reason": "no from"}
 
-    # ── Guardrail Yahuar (va PRIMERO, antes de auth y del agente) ───────────
+    # ── Guardrail Yahuar — ANTES del filtro de tipo para capturar sus imágenes ─
     # Yahuar tiene un LID interno distinto a su teléfono. Acumulamos todos los
     # identificadores conocidos: número de teléfono, LID del env var y LID
     # aprendido automáticamente la primera vez que respondió.
@@ -410,33 +404,39 @@ async def _procesar_item_waha(data: dict) -> dict:
 
     es_yahuar = numero in yahuar_ids
 
+    print(f"[WAHA] from={from_field!r} numero={numero!r} tipo={tipo!r} texto={texto[:60]!r}", flush=True)
+
     if es_yahuar:
         # 1. ¿Hay un relay activo? (Yahuar mandó texto y ahora manda la foto)
-        relay_dest = await yahuar_mod.get_relay_dest()
-        if relay_dest:
-            print(f"[YAHUAR] follow-up (foto/texto adicional) → relay a {relay_dest!r}", flush=True)
-            return await _reenviar_yahuar(payload, relay_dest, "")
+        relay_info = await yahuar_mod.get_relay_dest()
+        if relay_info:
+            destino_r, placa_r = relay_info if isinstance(relay_info, tuple) else (relay_info, "")
+            print(f"[YAHUAR] follow-up tipo={tipo!r} hasMedia={payload.get('hasMedia')} → relay a {destino_r!r}", flush=True)
+            return await _reenviar_yahuar(payload, destino_r, placa_r)
 
         # 2. ¿Hay consulta pendiente? Primera respuesta de Yahuar.
-        pendiente = await yahuar_mod.get_pendiente()   # consume + borra el pendiente
+        pendiente = await yahuar_mod.get_pendiente()
         if pendiente:
             destino = pendiente["from_field"]
             placa   = pendiente.get("placa", "")
-            print(f"[YAHUAR] primera respuesta → relay a {destino!r} placa={placa!r}", flush=True)
-            await yahuar_mod.open_relay(destino)       # abre ventana 45s para follow-ups
+            print(f"[YAHUAR] primera respuesta tipo={tipo!r} → relay a {destino!r} placa={placa!r}", flush=True)
+            await yahuar_mod.open_relay(destino, placa)
             return await _reenviar_yahuar(payload, destino, placa)
 
         print(f"[YAHUAR] ignorado: sin consulta pendiente ni relay activo", flush=True)
         return {"status": "ignored", "reason": "yahuar no pending"}
 
-    # ── Auto-aprendizaje: detectar Yahuar aunque no conozcamos su LID ───────
-    # Si hay una consulta pendiente Y el remitente NO es el usuario original,
-    # asumimos que es Yahuar respondiendo desde un LID desconocido.
+    # ── Auto-aprendizaje: detectar Yahuar desde LID desconocido ─────────────
     pendiente_peek = await yahuar_mod.peek_pendiente()
     if pendiente_peek and from_field != pendiente_peek.get("from_field"):
-        print(f"[YAHUAR] LID desconocido detectado por contexto: {numero!r} — guardando", flush=True)
+        print(f"[YAHUAR] LID desconocido detectado: {numero!r} — guardando", flush=True)
         await yahuar_mod.save_yahuar_lid(numero)
         return await _manejar_respuesta_yahuar(payload)
+
+    # ── Filtro de tipo (solo para usuarios normales, no para Yahuar) ─────────
+    if tipo not in ("chat", "text", ""):
+        print(f"[WAHA] ignorado: tipo {tipo!r} (no es texto del usuario)")
+        return {"status": "ignored", "reason": f"type {tipo}"}
 
     if not texto:
         print("[WAHA] ignorado: no texto", flush=True)

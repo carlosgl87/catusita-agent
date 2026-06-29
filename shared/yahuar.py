@@ -61,17 +61,25 @@ async def save_yahuar_lid(numero: str) -> None:
     print(f"[YAHUAR] LID aprendido y guardado: {numero!r}", flush=True)
 
 
-async def open_relay(from_field: str) -> None:
-    """Abre una ventana de relay de 45s para recibir mensajes follow-up de Yahuar (ej. foto)."""
-    r = await _get_redis()
-    await r.setex(RELAY_DEST_KEY, RELAY_DEST_TTL, from_field)
+async def open_relay(from_field: str, placa: str = "") -> None:
+    """Abre ventana de relay: guarda destino + placa durante 60s para follow-ups."""
+    r    = await _get_redis()
+    data = json.dumps({"from_field": from_field, "placa": placa})
+    await r.setex(RELAY_DEST_KEY, RELAY_DEST_TTL, data)
 
 
-async def get_relay_dest() -> str | None:
-    """Devuelve el destino activo del relay, o None si ya expiró."""
-    r = await _get_redis()
+async def get_relay_dest() -> tuple[str, str] | None:
+    """Devuelve (from_field, placa) del relay activo, o None si expiró."""
+    r   = await _get_redis()
     val = await r.get(RELAY_DEST_KEY)
-    return val.decode() if isinstance(val, bytes) else val
+    if not val:
+        return None
+    raw = val.decode() if isinstance(val, bytes) else val
+    try:
+        d = json.loads(raw)
+        return d["from_field"], d.get("placa", "")
+    except Exception:
+        return raw, ""   # compatibilidad con formato antiguo
 
 
 async def acumular_mensaje(payload: dict) -> float:
