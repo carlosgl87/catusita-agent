@@ -135,13 +135,30 @@ async def consultar_precio(
 # ─── Pedidos / crédito / documentos ──────────────────────────────────────────
 
 @tool
+async def buscar_pedido_por_id(
+    pedido_id: str,
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Busca el estado, fechas, factura y guía de un pedido conociendo solo su número (ej. PED-000001). Úsala cuando el asesor mencione un número de pedido pero no el RUC del cliente. Devuelve el estado del pedido, número de factura, guía y el cliente_ruc."""
+    perfil = state["perfil"]
+    t0 = time.time()
+    resultado = await orders.consultar_pedido_por_id(pedido_id)
+    if not resultado or resultado.get("error"):
+        resultado = {"error": "PEDIDO_NO_ENCONTRADO", "pedido_id": pedido_id,
+                     "mensaje": f"No se encontró ningún pedido con ID {pedido_id!r}."}
+    await _log(perfil, "buscar_pedido_por_id", t0)
+    return _to_command(resultado, tool_call_id)
+
+
+@tool
 async def consultar_pedidos(
     cliente_ruc: str,
     state: Annotated[dict, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
     estado: Optional[str] = None,
 ) -> Command:
-    """Consulta los pedidos de un cliente por su RUC. Muestra estado, fechas de entrega y tracking."""
+    """Consulta TODOS los pedidos de un cliente por su RUC. Usa esta tool cuando tengas el RUC del cliente y quieras ver su historial de pedidos. Si solo tienes el número de pedido (PED-XXXXXX) sin saber el cliente, usa buscar_pedido_por_id en su lugar."""
     perfil = state["perfil"]
     args = {"cliente_ruc": cliente_ruc}
     denegado = await access.verificar_acceso_cartera("consultar_pedidos", args, perfil)
@@ -329,6 +346,32 @@ async def consultar_placa_sunarp(
     return _to_command(resultado, tool_call_id, extra)
 
 
+# ─── Placa vía Yahuar (WhatsApp relay) ───────────────────────────────────────
+
+@tool
+async def consultar_placa_yahuar(
+    placa: str,
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Consulta los datos de un vehículo peruano por su placa enviando la consulta al servicio Yahuar vía WhatsApp. Úsala cuando pregunten qué auto es una placa, a quién pertenece, o quieran los datos del vehículo. Tarda ~30 segundos: avisa al usuario que la respuesta llegará en un momento. La foto y los datos llegan automáticamente al chat."""
+    from shared import yahuar as yahuar_mod
+    perfil     = state["perfil"]
+    from_field = perfil.get("from_field") or perfil.get("numero", "")
+    t0 = time.time()
+    try:
+        await yahuar_mod.consultar_placa(placa.strip().upper(), from_field)
+        resultado = {
+            "placa": placa.strip().upper(),
+            "mensaje": f"Consulté la placa {placa.strip().upper()} con Yahuar. La respuesta llega en unos 30 segundos directamente al chat.",
+        }
+    except Exception as e:
+        logging.error(f"Error consultando Yahuar: {e}")
+        resultado = {"error": "YAHUAR_ERROR", "mensaje": "No pude consultar la placa en este momento. Inténtalo de nuevo."}
+    await _log(perfil, "consultar_placa_yahuar", t0)
+    return _to_command(resultado, tool_call_id)
+
+
 # ─── Solo clientes ────────────────────────────────────────────────────────────
 
 @tool
@@ -352,6 +395,7 @@ async def registrar_reclamo(
 TOOLS_VENDEDOR_LC = [
     consultar_stock,
     consultar_precio,
+    buscar_pedido_por_id,
     consultar_pedidos,
     consultar_credito,
     consultar_cobranzas,
@@ -362,11 +406,13 @@ TOOLS_VENDEDOR_LC = [
     buscar_catalogo,
     identificar_vehiculo,
     consultar_placa_sunarp,
+    consultar_placa_yahuar,
 ]
 
 TOOLS_CLIENTE_LC = [
     consultar_stock,
     consultar_precio,
+    buscar_pedido_por_id,
     consultar_pedidos,
     obtener_documentos,
     buscar_catalogo,

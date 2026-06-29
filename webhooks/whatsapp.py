@@ -41,6 +41,7 @@ from fastapi import APIRouter, Request, HTTPException
 from shared import auth
 from shared import kapso as kapso_mod
 from shared import waha as waha_mod
+from shared import yahuar as yahuar_mod
 from orchestrator import router as agent_router
 from orchestrator.graph import run_agent_graph_full
 from orchestrator import context
@@ -389,8 +390,16 @@ async def _procesar_item_waha(data: dict) -> dict:
 
     print(f"[WAHA] from={from_field!r} numero={numero!r} texto={texto!r}")
 
-    if not texto or not from_field:
-        return {"status": "ignored", "reason": "no text or number"}
+    if not from_field:
+        return {"status": "ignored", "reason": "no from"}
+
+    # ── Respuesta de Yahuar: NO corre el agente, reenvía al usuario original ──
+    yahuar_num = yahuar_mod.YAHUAR_NUMBER
+    if numero == yahuar_num or numero.endswith(yahuar_num):
+        return await _manejar_respuesta_yahuar(payload)
+
+    if not texto:
+        return {"status": "ignored", "reason": "no text"}
 
     # Reutilizamos toda la lógica del agente — phone_number_id vacío porque
     # WAHA no tiene ese concepto (usamos session en su lugar).
@@ -409,7 +418,8 @@ async def _procesar_item_waha(data: dict) -> dict:
 
     conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
     perfil["conversation_id"] = conversation_id
-    perfil["numero"] = numero
+    perfil["numero"]          = numero
+    perfil["from_field"]      = from_field   # necesario para Yahuar relay
     perfil["phone_number_id"] = ""
 
     historial = await context.get_history(numero)
@@ -447,6 +457,48 @@ async def _procesar_item_waha(data: dict) -> dict:
             )
         except Exception as e:
             print(f"[WAHA] ERROR enviando imagen: {e}")
+
+    return {"status": "ok"}
+
+
+async def _manejar_respuesta_yahuar(payload: dict) -> dict:
+    """
+    Yahuar respondió con la info de la placa.
+    Busca en Redis a quién estaba esperando y le reenvía texto + foto.
+    """
+    pendiente = await yahuar_mod.get_pendiente()
+    if not pendiente:
+        print("[YAHUAR] respuesta recibida pero no hay consulta pendiente en Redis")
+        return {"status": "ignored", "reason": "no pending"}
+
+    destino    = pendiente["from_field"]
+    placa      = pendiente.get("placa", "")
+    texto_resp = payload.get("body") or ""
+    has_media  = payload.get("hasMedia", False)
+    media      = payload.get("media") or {}
+
+    print(f"[YAHUAR] respuesta para {destino!r} placa={placa!r} hasMedia={has_media}")
+
+    messenger = _messenger()
+
+    # Enviar texto si lo hay
+    if texto_resp:
+        try:
+            await messenger.send_message(destino, "", texto_resp)
+        except Exception as e:
+            print(f"[YAHUAR] ERROR enviando texto: {e}")
+
+    # Enviar imagen si la hay (viene en base64 con WHATSAPP_HOOK_MEDIA_INLINE=true)
+    if has_media and media.get("data"):
+        try:
+            await messenger.send_image_base64(
+                destino, "",
+                media["data"],
+                caption=f"Placa {placa}",
+                filename=f"placa_{placa}.jpg",
+            )
+        except Exception as e:
+            print(f"[YAHUAR] ERROR enviando imagen: {e}")
 
     return {"status": "ok"}
 
