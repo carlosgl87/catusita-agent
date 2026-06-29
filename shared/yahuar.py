@@ -34,7 +34,8 @@ async def consultar_placa(placa: str, from_field: str) -> None:
         ensure_ascii=False,
     )
     await r.setex(PENDING_KEY, PENDING_TTL, data)
-    await waha_mod.waha.send_message(YAHUAR_CHAT_ID, "", placa.upper())
+    # Mandamos la placa con contexto para que Yahuar no pida aclaración
+    await waha_mod.waha.send_message(YAHUAR_CHAT_ID, "", f"Placa vehicular: {placa.upper()}")
 
 
 async def peek_pendiente() -> dict | None:

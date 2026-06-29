@@ -507,6 +507,13 @@ _ERRORES_YAHUAR = (
     "inválida", "incorrecta", "no reconozco", "no tengo datos",
 )
 
+# Frases que indican que Yahuar pide aclaración (no es una respuesta final)
+_ACLARACION_YAHUAR = (
+    "necesito entender", "¿es un", "cuéntame más", "qué consulta",
+    "necesito saber", "puedes aclarar", "me puedes decir",
+    "qué tipo de", "para poder ayudarte",
+)
+
 _INSTRUCCION_PLACA = (
     "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
     "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles: "
@@ -577,6 +584,17 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
             )
             await messenger.send_message(destino, "", msg_error)
             print(f"[YAHUAR] error de Yahuar detectado → aviso al usuario", flush=True)
+            return {"status": "ok"}
+
+        # ¿Yahuar pide aclaración? → responderle automáticamente
+        texto_lower = texto_resp.lower()
+        if any(p in texto_lower for p in _ACLARACION_YAHUAR):
+            print(f"[YAHUAR] pide aclaración → respondiendo 'Placa vehicular'", flush=True)
+            try:
+                await _messenger().send_message(yahuar_mod.YAHUAR_CHAT_ID, "", "Placa vehicular")
+            except Exception as e:
+                print(f"[YAHUAR] ERROR respondiendo aclaración: {e}", flush=True)
+            # No enviar nada al usuario todavía — seguimos esperando la respuesta real
             return {"status": "ok"}
 
         # Texto normal: guardarlo en buffer y esperar la foto 8 segundos
