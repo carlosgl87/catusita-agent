@@ -394,24 +394,39 @@ async def _procesar_item_waha(data: dict) -> dict:
         print("[WAHA] ignorado: no from", flush=True)
         return {"status": "ignored", "reason": "no from"}
 
-    # ── Bloqueo / relay de Yahuar ────────────────────────────────────────────
-    # Yahuar tiene LID distinto a su número de teléfono. Bloqueamos ambos para
-    # que ningún mensaje suyo pase al agente y genere un loop.
-    yahuar_num = yahuar_mod.YAHUAR_NUMBER            # "51977504279"
-    yahuar_lid = os.getenv("YAHUAR_LID", "")        # "250032309711048"
-    es_yahuar = (
-        numero == yahuar_num
-        or numero.endswith(yahuar_num)
-        or (yahuar_lid and numero == yahuar_lid)
-    )
+    # ── Guardrail Yahuar (va PRIMERO, antes de auth y del agente) ───────────
+    # Yahuar tiene un LID interno distinto a su teléfono. Acumulamos todos los
+    # identificadores conocidos: número de teléfono, LID del env var y LID
+    # aprendido automáticamente la primera vez que respondió.
+    yahuar_num      = yahuar_mod.YAHUAR_NUMBER          # "51977504279"
+    yahuar_lid_env  = os.getenv("YAHUAR_LID", "")      # "250032309711048" (manual)
+    yahuar_lid_redis = await yahuar_mod.get_yahuar_lid()  # aprendido automáticamente
+
+    yahuar_ids = {yahuar_num}
+    if yahuar_lid_env:
+        yahuar_ids.add(yahuar_lid_env)
+    if yahuar_lid_redis:
+        yahuar_ids.add(yahuar_lid_redis)
+
+    es_yahuar = numero in yahuar_ids
+
     if es_yahuar:
         pendiente_peek = await yahuar_mod.peek_pendiente()
         if pendiente_peek:
-            print(f"[WAHA] respuesta de Yahuar → relay a {pendiente_peek.get('from_field')!r}", flush=True)
+            print(f"[YAHUAR] respuesta recibida → relay a {pendiente_peek.get('from_field')!r}", flush=True)
             return await _manejar_respuesta_yahuar(payload)
         else:
-            print(f"[WAHA] ignorado: mensaje de Yahuar sin consulta pendiente (corta loop)", flush=True)
+            print(f"[YAHUAR] ignorado: sin consulta pendiente (corta loop)", flush=True)
             return {"status": "ignored", "reason": "yahuar no pending"}
+
+    # ── Auto-aprendizaje: detectar Yahuar aunque no conozcamos su LID ───────
+    # Si hay una consulta pendiente Y el remitente NO es el usuario original,
+    # asumimos que es Yahuar respondiendo desde un LID desconocido.
+    pendiente_peek = await yahuar_mod.peek_pendiente()
+    if pendiente_peek and from_field != pendiente_peek.get("from_field"):
+        print(f"[YAHUAR] LID desconocido detectado por contexto: {numero!r} — guardando", flush=True)
+        await yahuar_mod.save_yahuar_lid(numero)
+        return await _manejar_respuesta_yahuar(payload)
 
     if not texto:
         print("[WAHA] ignorado: no texto", flush=True)

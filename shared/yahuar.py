@@ -16,7 +16,8 @@ from orchestrator.context import _get_redis
 YAHUAR_NUMBER  = os.getenv("YAHUAR_NUMBER", "51977504279")
 YAHUAR_CHAT_ID = f"{YAHUAR_NUMBER}@c.us"
 PENDING_KEY    = "yahuar:pendiente"
-PENDING_TTL    = 180   # 3 min (Yahuar tarda ~30s, margen amplio)
+PENDING_TTL    = 180   # 3 min
+YAHUAR_LID_KEY = "yahuar:lid"   # LID aprendido automáticamente la primera vez que responde
 
 
 async def consultar_placa(placa: str, from_field: str) -> None:
@@ -36,6 +37,20 @@ async def peek_pendiente() -> dict | None:
     r = await _get_redis()
     raw = await r.get(PENDING_KEY)
     return json.loads(raw) if raw else None
+
+
+async def get_yahuar_lid() -> str | None:
+    """Devuelve el LID aprendido de Yahuar, o None si aún no se conoce."""
+    r = await _get_redis()
+    val = await r.get(YAHUAR_LID_KEY)
+    return val.decode() if isinstance(val, bytes) else val
+
+
+async def save_yahuar_lid(numero: str) -> None:
+    """Guarda el LID de Yahuar en Redis sin expiración (aprendizaje permanente)."""
+    r = await _get_redis()
+    await r.set(YAHUAR_LID_KEY, numero)
+    print(f"[YAHUAR] LID aprendido y guardado: {numero!r}", flush=True)
 
 
 async def get_pendiente() -> dict | None:
