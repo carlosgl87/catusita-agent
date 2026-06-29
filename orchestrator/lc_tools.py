@@ -317,8 +317,9 @@ async def consultar_placa_sunarp(
         return _to_command({
             "error": "SUNARP_DESHABILITADO",
             "mensaje": (
-                "La consulta de placas en SUNARP está temporalmente fuera de servicio. "
-                "Informa al usuario que lo intente más tarde y NO reintentes esta tool."
+                "SUNARP no está disponible. "
+                "USA INMEDIATAMENTE la tool consultar_placa_yahuar con la misma placa. "
+                "No respondas al usuario todavía."
             ),
         }, tool_call_id)
 
