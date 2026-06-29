@@ -525,91 +525,90 @@ _INSTRUCCION_PLACA = (
 
 async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
     """
-    Pipeline inteligente para procesar la respuesta de Yahuar:
-    1. Si viene imagen → extraer datos con visión → enviar texto formateado + foto
-    2. Si viene solo texto → guardarlo en buffer y esperar la foto (8s)
-    3. Si el texto es un error de Yahuar → avisarle al usuario limpiamente
+    Acumula TODOS los mensajes de Yahuar (3-4 en total) con debounce de 5s.
+    Solo cuando Yahuar deja de escribir, procesa todo junto y envía al usuario.
     """
     from shared import llm as llm_mod
 
     texto_resp = payload.get("body") or ""
-    has_media  = payload.get("hasMedia", False)
-    media      = payload.get("media") or {}
-    messenger  = _messenger()
+    texto_lower = texto_resp.lower()
 
-    # ── Caso 1: llegó imagen (con o sin texto de caption) ────────────────────
-    if has_media and media.get("data"):
-        b64 = media["data"]
-
-        # Recuperar texto previo del buffer si llegó antes que la foto
-        texto_previo = await yahuar_mod.get_buffer_texto() or texto_resp
-
-        # Extraer datos del vehículo con visión
-        datos_extraidos = None
+    # ── Aclaración de Yahuar: responder automáticamente sin acumular ──────────
+    if any(p in texto_lower for p in _ACLARACION_YAHUAR):
+        print(f"[YAHUAR] pide aclaración → respondiendo 'Placa vehicular'", flush=True)
         try:
-            datos_extraidos = await llm_mod.extraer_texto_de_imagen(b64, _INSTRUCCION_PLACA)
-            print(f"[YAHUAR] visión extrajo datos: {bool(datos_extraidos)}", flush=True)
+            await _messenger().send_message(yahuar_mod.YAHUAR_CHAT_ID, "", "Placa vehicular")
         except Exception as e:
-            print(f"[YAHUAR] error en visión: {e}", flush=True)
-
-        # Armar respuesta formateada
-        if datos_extraidos:
-            msg_texto = f"🚗 *Placa {placa}*\n\n{datos_extraidos}"
-        elif texto_previo:
-            msg_texto = texto_previo
-        else:
-            msg_texto = f"ℹ️ Datos de la placa *{placa}* recibidos."
-
-        await messenger.send_message(destino, "", msg_texto)
-        print(f"[YAHUAR] texto formateado enviado a {destino!r}", flush=True)
-
-        await messenger.send_image_base64(
-            destino, "", b64,
-            caption=f"Tarjeta vehicular — {placa}",
-            filename=f"placa_{placa}.jpg",
-        )
-        print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
-
-        await yahuar_mod.marcar_imagen_procesada()
+            print(f"[YAHUAR] ERROR respondiendo aclaración: {e}", flush=True)
         return {"status": "ok"}
 
-    # ── Caso 2: llegó solo texto ──────────────────────────────────────────────
-    if texto_resp:
-        # ¿Es un mensaje de error de Yahuar?
-        texto_lower = texto_resp.lower()
-        if any(e in texto_lower for e in _ERRORES_YAHUAR):
-            msg_error = (
-                f"⚠️ No pude obtener los datos de la placa *{placa}*. "
-                "Verifica que esté escrita correctamente e inténtalo de nuevo."
+    # ── Acumular este mensaje + actualizar timestamp ───────────────────────────
+    ts_mio = await yahuar_mod.acumular_mensaje(payload)
+    print(f"[YAHUAR] acumulado msg ts={ts_mio:.2f} texto={texto_resp[:60]!r}", flush=True)
+
+    # ── Debounce: esperar 5s de silencio antes de procesar ───────────────────
+    await asyncio.sleep(yahuar_mod.DEBOUNCE_SECS)
+
+    # ¿Llegó otro mensaje después del mío? Si sí, ese task se encargará.
+    ts_ultimo = await yahuar_mod.get_ultimo_ts()
+    if ts_ultimo > ts_mio + 0.1:
+        print(f"[YAHUAR] hay mensaje más reciente, este task cede", flush=True)
+        return {"status": "ok"}
+
+    # ¿Ya fue procesado por otro task? (doble seguro)
+    if await yahuar_mod.acumulador_ya_procesado():
+        print(f"[YAHUAR] acumulador ya procesado, saliendo", flush=True)
+        return {"status": "ok"}
+
+    # ── Soy el último — proceso todo ──────────────────────────────────────────
+    mensajes = await yahuar_mod.get_y_limpiar_acumulador()
+    print(f"[YAHUAR] procesando {len(mensajes)} mensajes acumulados", flush=True)
+
+    messenger = _messenger()
+    textos    = []
+    imagen_b64 = None
+
+    for msg in mensajes:
+        t = msg.get("body") or ""
+        if t:
+            t_low = t.lower()
+            if any(e in t_low for e in _ERRORES_YAHUAR):
+                await messenger.send_message(
+                    destino, "",
+                    f"⚠️ No pude obtener datos de la placa *{placa}*. "
+                    "Verifica que esté escrita correctamente.",
+                )
+                return {"status": "ok"}
+            textos.append(t)
+        media = msg.get("media") or {}
+        if msg.get("hasMedia") and media.get("data") and not imagen_b64:
+            imagen_b64 = media["data"]
+
+    # Extraer datos del vehículo si hay imagen
+    datos_vision = None
+    if imagen_b64:
+        try:
+            datos_vision = await llm_mod.extraer_texto_de_imagen(imagen_b64, _INSTRUCCION_PLACA)
+            print(f"[YAHUAR] visión OK: {bool(datos_vision)}", flush=True)
+        except Exception as e:
+            print(f"[YAHUAR] error visión: {e}", flush=True)
+
+    # Construir y enviar respuesta final
+    if datos_vision:
+        await messenger.send_message(destino, "", f"🚗 *Placa {placa}*\n\n{datos_vision}")
+    elif textos:
+        await messenger.send_message(destino, "", "\n\n".join(textos))
+
+    if imagen_b64:
+        try:
+            await messenger.send_image_base64(
+                destino, "", imagen_b64,
+                caption=f"Tarjeta vehicular — {placa}",
+                filename=f"placa_{placa}.jpg",
             )
-            await messenger.send_message(destino, "", msg_error)
-            print(f"[YAHUAR] error de Yahuar detectado → aviso al usuario", flush=True)
-            return {"status": "ok"}
-
-        # ¿Yahuar pide aclaración? → responderle automáticamente
-        texto_lower = texto_resp.lower()
-        if any(p in texto_lower for p in _ACLARACION_YAHUAR):
-            print(f"[YAHUAR] pide aclaración → respondiendo 'Placa vehicular'", flush=True)
-            try:
-                await _messenger().send_message(yahuar_mod.YAHUAR_CHAT_ID, "", "Placa vehicular")
-            except Exception as e:
-                print(f"[YAHUAR] ERROR respondiendo aclaración: {e}", flush=True)
-            # No enviar nada al usuario todavía — seguimos esperando la respuesta real
-            return {"status": "ok"}
-
-        # Texto normal: guardarlo en buffer y esperar la foto 8 segundos
-        await yahuar_mod.buffer_texto(texto_resp)
-        print(f"[YAHUAR] texto en buffer, esperando foto 8s...", flush=True)
-        await asyncio.sleep(8)
-
-        # ¿Llegó la imagen durante la espera?
-        if await yahuar_mod.imagen_ya_procesada():
-            print(f"[YAHUAR] imagen procesada durante la espera, texto ya enviado", flush=True)
-            return {"status": "ok"}
-
-        # No llegó imagen — enviar el texto como está
-        await messenger.send_message(destino, "", texto_resp)
-        print(f"[YAHUAR] sin foto tras 8s, enviando texto solo a {destino!r}", flush=True)
+            print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
+        except Exception as e:
+            print(f"[YAHUAR] ERROR enviando foto: {e}", flush=True)
 
     return {"status": "ok"}
 

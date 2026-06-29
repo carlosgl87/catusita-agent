@@ -18,11 +18,13 @@ YAHUAR_CHAT_ID   = f"{YAHUAR_NUMBER}@c.us"
 PENDING_KEY      = "yahuar:pendiente"
 PENDING_TTL      = 180   # 3 min
 YAHUAR_LID_KEY   = "yahuar:lid"     # LID aprendido automáticamente
-RELAY_DEST_KEY   = "yahuar:relay"   # destino activo mientras llegan follow-ups (texto + foto)
-RELAY_DEST_TTL   = 45               # segundos que esperamos mensajes adicionales de Yahuar
-BUFFER_KEY       = "yahuar:buf"     # acumula texto + imagen antes de procesar
-BUFFER_TTL       = 20               # ventana para que llegue la imagen después del texto
-IMG_DONE_KEY     = "yahuar:imgdone" # flag: imagen ya procesada (evita doble envío)
+RELAY_DEST_KEY   = "yahuar:relay"   # destino activo mientras llegan follow-ups
+RELAY_DEST_TTL   = 60               # ventana de relay
+ACUM_KEY         = "yahuar:acum"    # lista de mensajes acumulados de Yahuar
+ACUM_TS_KEY      = "yahuar:acum_ts" # timestamp del último mensaje recibido
+ACUM_TTL         = 60               # TTL del acumulador
+DEBOUNCE_SECS    = 5                # segundos sin actividad antes de procesar
+IMG_DONE_KEY     = "yahuar:imgdone" # flag: acumulador ya procesado
 
 
 async def consultar_placa(placa: str, from_field: str) -> None:
@@ -72,25 +74,36 @@ async def get_relay_dest() -> str | None:
     return val.decode() if isinstance(val, bytes) else val
 
 
-async def buffer_texto(texto: str) -> None:
-    """Guarda el texto de Yahuar en el buffer esperando que llegue la imagen."""
-    r = await _get_redis()
-    await r.setex(BUFFER_KEY, BUFFER_TTL, texto)
+async def acumular_mensaje(payload: dict) -> float:
+    """
+    Agrega el payload de Yahuar al acumulador Redis y actualiza el timestamp.
+    Devuelve el timestamp guardado (para el debounce en el caller).
+    """
+    r   = await _get_redis()
+    ts  = time.time()
+    raw = json.dumps(payload, ensure_ascii=False)
+    await r.rpush(ACUM_KEY, raw)
+    await r.expire(ACUM_KEY, ACUM_TTL)
+    await r.set(ACUM_TS_KEY, str(ts), ex=ACUM_TTL)
+    return ts
 
 
-async def get_buffer_texto() -> str | None:
-    r = await _get_redis()
-    val = await r.get(BUFFER_KEY)
-    return val.decode() if isinstance(val, bytes) else val
+async def get_ultimo_ts() -> float:
+    r   = await _get_redis()
+    val = await r.get(ACUM_TS_KEY)
+    return float(val) if val else 0.0
 
 
-async def marcar_imagen_procesada() -> None:
-    r = await _get_redis()
-    await r.setex(IMG_DONE_KEY, BUFFER_TTL, "1")
-    await r.delete(BUFFER_KEY)
+async def get_y_limpiar_acumulador() -> list[dict]:
+    """Obtiene todos los mensajes acumulados y limpia las claves."""
+    r    = await _get_redis()
+    raws = await r.lrange(ACUM_KEY, 0, -1)
+    await r.delete(ACUM_KEY, ACUM_TS_KEY)
+    await r.setex(IMG_DONE_KEY, 30, "1")   # evita que otro task reprocese
+    return [json.loads(x) for x in raws]
 
 
-async def imagen_ya_procesada() -> bool:
+async def acumulador_ya_procesado() -> bool:
     r = await _get_redis()
     return bool(await r.get(IMG_DONE_KEY))
 
