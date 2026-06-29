@@ -20,6 +20,9 @@ PENDING_TTL      = 180   # 3 min
 YAHUAR_LID_KEY   = "yahuar:lid"     # LID aprendido automáticamente
 RELAY_DEST_KEY   = "yahuar:relay"   # destino activo mientras llegan follow-ups (texto + foto)
 RELAY_DEST_TTL   = 45               # segundos que esperamos mensajes adicionales de Yahuar
+BUFFER_KEY       = "yahuar:buf"     # acumula texto + imagen antes de procesar
+BUFFER_TTL       = 20               # ventana para que llegue la imagen después del texto
+IMG_DONE_KEY     = "yahuar:imgdone" # flag: imagen ya procesada (evita doble envío)
 
 
 async def consultar_placa(placa: str, from_field: str) -> None:
@@ -66,6 +69,29 @@ async def get_relay_dest() -> str | None:
     r = await _get_redis()
     val = await r.get(RELAY_DEST_KEY)
     return val.decode() if isinstance(val, bytes) else val
+
+
+async def buffer_texto(texto: str) -> None:
+    """Guarda el texto de Yahuar en el buffer esperando que llegue la imagen."""
+    r = await _get_redis()
+    await r.setex(BUFFER_KEY, BUFFER_TTL, texto)
+
+
+async def get_buffer_texto() -> str | None:
+    r = await _get_redis()
+    val = await r.get(BUFFER_KEY)
+    return val.decode() if isinstance(val, bytes) else val
+
+
+async def marcar_imagen_procesada() -> None:
+    r = await _get_redis()
+    await r.setex(IMG_DONE_KEY, BUFFER_TTL, "1")
+    await r.delete(BUFFER_KEY)
+
+
+async def imagen_ya_procesada() -> bool:
+    r = await _get_redis()
+    return bool(await r.get(IMG_DONE_KEY))
 
 
 async def get_pendiente() -> dict | None:

@@ -502,32 +502,96 @@ async def _procesar_item_waha(data: dict) -> dict:
     return {"status": "ok"}
 
 
+_ERRORES_YAHUAR = (
+    "creo que escribiste", "no encontré", "no pude", "no existe",
+    "inválida", "incorrecta", "no reconozco", "no tengo datos",
+)
+
+_INSTRUCCION_PLACA = (
+    "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
+    "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles: "
+    "placa, marca, modelo, año de fabricación, color, número de serie/VIN, número de motor, "
+    "categoría, combustible y propietario(s) si aparecen. "
+    "Solo los datos, sin comentarios ni explicaciones."
+)
+
+
 async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
-    """Reenvía texto y/o foto de Yahuar al usuario original."""
+    """
+    Pipeline inteligente para procesar la respuesta de Yahuar:
+    1. Si viene imagen → extraer datos con visión → enviar texto formateado + foto
+    2. Si viene solo texto → guardarlo en buffer y esperar la foto (8s)
+    3. Si el texto es un error de Yahuar → avisarle al usuario limpiamente
+    """
+    from shared import llm as llm_mod
+
     texto_resp = payload.get("body") or ""
     has_media  = payload.get("hasMedia", False)
     media      = payload.get("media") or {}
+    messenger  = _messenger()
 
-    messenger = _messenger()
-
-    if texto_resp:
-        try:
-            await messenger.send_message(destino, "", texto_resp)
-            print(f"[YAHUAR] texto enviado a {destino!r}", flush=True)
-        except Exception as e:
-            print(f"[YAHUAR] ERROR enviando texto: {e}", flush=True)
-
+    # ── Caso 1: llegó imagen (con o sin texto de caption) ────────────────────
     if has_media and media.get("data"):
+        b64 = media["data"]
+
+        # Recuperar texto previo del buffer si llegó antes que la foto
+        texto_previo = await yahuar_mod.get_buffer_texto() or texto_resp
+
+        # Extraer datos del vehículo con visión
+        datos_extraidos = None
         try:
-            await messenger.send_image_base64(
-                destino, "",
-                media["data"],
-                caption=f"Placa {placa}" if placa else "",
-                filename=f"placa_{placa}.jpg" if placa else "placa.jpg",
-            )
-            print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
+            datos_extraidos = await llm_mod.extraer_texto_de_imagen(b64, _INSTRUCCION_PLACA)
+            print(f"[YAHUAR] visión extrajo datos: {bool(datos_extraidos)}", flush=True)
         except Exception as e:
-            print(f"[YAHUAR] ERROR enviando foto: {e}", flush=True)
+            print(f"[YAHUAR] error en visión: {e}", flush=True)
+
+        # Armar respuesta formateada
+        if datos_extraidos:
+            msg_texto = f"🚗 *Placa {placa}*\n\n{datos_extraidos}"
+        elif texto_previo:
+            msg_texto = texto_previo
+        else:
+            msg_texto = f"ℹ️ Datos de la placa *{placa}* recibidos."
+
+        await messenger.send_message(destino, "", msg_texto)
+        print(f"[YAHUAR] texto formateado enviado a {destino!r}", flush=True)
+
+        await messenger.send_image_base64(
+            destino, "", b64,
+            caption=f"Tarjeta vehicular — {placa}",
+            filename=f"placa_{placa}.jpg",
+        )
+        print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
+
+        await yahuar_mod.marcar_imagen_procesada()
+        return {"status": "ok"}
+
+    # ── Caso 2: llegó solo texto ──────────────────────────────────────────────
+    if texto_resp:
+        # ¿Es un mensaje de error de Yahuar?
+        texto_lower = texto_resp.lower()
+        if any(e in texto_lower for e in _ERRORES_YAHUAR):
+            msg_error = (
+                f"⚠️ No pude obtener los datos de la placa *{placa}*. "
+                "Verifica que esté escrita correctamente e inténtalo de nuevo."
+            )
+            await messenger.send_message(destino, "", msg_error)
+            print(f"[YAHUAR] error de Yahuar detectado → aviso al usuario", flush=True)
+            return {"status": "ok"}
+
+        # Texto normal: guardarlo en buffer y esperar la foto 8 segundos
+        await yahuar_mod.buffer_texto(texto_resp)
+        print(f"[YAHUAR] texto en buffer, esperando foto 8s...", flush=True)
+        await asyncio.sleep(8)
+
+        # ¿Llegó la imagen durante la espera?
+        if await yahuar_mod.imagen_ya_procesada():
+            print(f"[YAHUAR] imagen procesada durante la espera, texto ya enviado", flush=True)
+            return {"status": "ok"}
+
+        # No llegó imagen — enviar el texto como está
+        await messenger.send_message(destino, "", texto_resp)
+        print(f"[YAHUAR] sin foto tras 8s, enviando texto solo a {destino!r}", flush=True)
 
     return {"status": "ok"}
 
