@@ -23,7 +23,7 @@ RELAY_DEST_TTL   = 60               # ventana de relay
 ACUM_KEY         = "yahuar:acum"    # lista de mensajes acumulados de Yahuar
 ACUM_TS_KEY      = "yahuar:acum_ts" # timestamp del último mensaje recibido
 ACUM_TTL         = 60               # TTL del acumulador
-DEBOUNCE_SECS    = 5                # segundos sin actividad antes de procesar
+DEBOUNCE_SECS    = 7                # segundos sin actividad antes de procesar
 IMG_DONE_KEY     = "yahuar:imgdone" # flag: acumulador ya procesado
 
 
