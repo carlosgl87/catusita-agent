@@ -388,24 +388,27 @@ async def _procesar_item_waha(data: dict) -> dict:
     numero     = from_field.split("@")[0].lstrip("+")   # para auth y Redis
     texto      = payload.get("body") or ""
 
-    print(f"[WAHA] from={from_field!r} numero={numero!r} texto={texto!r}")
+    print(f"[WAHA] from={from_field!r} numero={numero!r} texto={texto!r}", flush=True)
 
     if not from_field:
+        print("[WAHA] ignorado: no from", flush=True)
         return {"status": "ignored", "reason": "no from"}
 
     # ── Respuesta de Yahuar: NO corre el agente, reenvía al usuario original ──
     yahuar_num = yahuar_mod.YAHUAR_NUMBER
     if numero == yahuar_num or numero.endswith(yahuar_num):
+        print(f"[WAHA] mensaje de Yahuar detectado", flush=True)
         return await _manejar_respuesta_yahuar(payload)
 
     if not texto:
+        print("[WAHA] ignorado: no texto", flush=True)
         return {"status": "ignored", "reason": "no text"}
 
     # Reutilizamos toda la lógica del agente — phone_number_id vacío porque
     # WAHA no tiene ese concepto (usamos session en su lugar).
     agente_tipo = "vendedor"  # por ahora solo el canal de vendedores
     perfil = await auth.get_user_profile(numero, agente_tipo)
-    print(f"[WAHA] perfil: {perfil}")
+    print(f"[WAHA] perfil: {perfil}", flush=True)
 
     if not perfil.get("autenticado"):
         await _messenger().send_message(from_field, "", perfil.get("mensaje", ""))
@@ -520,7 +523,9 @@ async def webhook_waha(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="invalid json")
 
-    print(f"[WAHA] evento recibido: {data.get('event')!r}")
+    event_name = data.get("event", "")
+    payload_preview = str(data)[:300]
+    print(f"[WAHA] evento recibido: {event_name!r} payload={payload_preview}", flush=True)
 
     tarea = asyncio.create_task(_procesar_item_waha_bg(data))
     _tareas_bg.add(tarea)
@@ -531,7 +536,9 @@ async def webhook_waha(request: Request):
 
 async def _procesar_item_waha_bg(data: dict) -> None:
     try:
+        print("[WAHA] bg: iniciando procesamiento", flush=True)
         await _procesar_item_waha(data)
+        print("[WAHA] bg: procesamiento completado", flush=True)
     except Exception as e:
         logging.error(f"Error procesando evento WAHA: {e}", exc_info=True)
-        print(f"[WAHA] ERROR en background: {e}")
+        print(f"[WAHA] ERROR en background: {e}", flush=True)
