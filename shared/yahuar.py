@@ -13,11 +13,13 @@ import time
 
 from orchestrator.context import _get_redis
 
-YAHUAR_NUMBER  = os.getenv("YAHUAR_NUMBER", "51977504279")
-YAHUAR_CHAT_ID = f"{YAHUAR_NUMBER}@c.us"
-PENDING_KEY    = "yahuar:pendiente"
-PENDING_TTL    = 180   # 3 min
-YAHUAR_LID_KEY = "yahuar:lid"   # LID aprendido automáticamente la primera vez que responde
+YAHUAR_NUMBER    = os.getenv("YAHUAR_NUMBER", "51977504279")
+YAHUAR_CHAT_ID   = f"{YAHUAR_NUMBER}@c.us"
+PENDING_KEY      = "yahuar:pendiente"
+PENDING_TTL      = 180   # 3 min
+YAHUAR_LID_KEY   = "yahuar:lid"     # LID aprendido automáticamente
+RELAY_DEST_KEY   = "yahuar:relay"   # destino activo mientras llegan follow-ups (texto + foto)
+RELAY_DEST_TTL   = 45               # segundos que esperamos mensajes adicionales de Yahuar
 
 
 async def consultar_placa(placa: str, from_field: str) -> None:
@@ -51,6 +53,19 @@ async def save_yahuar_lid(numero: str) -> None:
     r = await _get_redis()
     await r.set(YAHUAR_LID_KEY, numero)
     print(f"[YAHUAR] LID aprendido y guardado: {numero!r}", flush=True)
+
+
+async def open_relay(from_field: str) -> None:
+    """Abre una ventana de relay de 45s para recibir mensajes follow-up de Yahuar (ej. foto)."""
+    r = await _get_redis()
+    await r.setex(RELAY_DEST_KEY, RELAY_DEST_TTL, from_field)
+
+
+async def get_relay_dest() -> str | None:
+    """Devuelve el destino activo del relay, o None si ya expiró."""
+    r = await _get_redis()
+    val = await r.get(RELAY_DEST_KEY)
+    return val.decode() if isinstance(val, bytes) else val
 
 
 async def get_pendiente() -> dict | None:

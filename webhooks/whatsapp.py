@@ -411,13 +411,23 @@ async def _procesar_item_waha(data: dict) -> dict:
     es_yahuar = numero in yahuar_ids
 
     if es_yahuar:
-        pendiente_peek = await yahuar_mod.peek_pendiente()
-        if pendiente_peek:
-            print(f"[YAHUAR] respuesta recibida → relay a {pendiente_peek.get('from_field')!r}", flush=True)
-            return await _manejar_respuesta_yahuar(payload)
-        else:
-            print(f"[YAHUAR] ignorado: sin consulta pendiente (corta loop)", flush=True)
-            return {"status": "ignored", "reason": "yahuar no pending"}
+        # 1. ¿Hay un relay activo? (Yahuar mandó texto y ahora manda la foto)
+        relay_dest = await yahuar_mod.get_relay_dest()
+        if relay_dest:
+            print(f"[YAHUAR] follow-up (foto/texto adicional) → relay a {relay_dest!r}", flush=True)
+            return await _reenviar_yahuar(payload, relay_dest, "")
+
+        # 2. ¿Hay consulta pendiente? Primera respuesta de Yahuar.
+        pendiente = await yahuar_mod.get_pendiente()   # consume + borra el pendiente
+        if pendiente:
+            destino = pendiente["from_field"]
+            placa   = pendiente.get("placa", "")
+            print(f"[YAHUAR] primera respuesta → relay a {destino!r} placa={placa!r}", flush=True)
+            await yahuar_mod.open_relay(destino)       # abre ventana 45s para follow-ups
+            return await _reenviar_yahuar(payload, destino, placa)
+
+        print(f"[YAHUAR] ignorado: sin consulta pendiente ni relay activo", flush=True)
+        return {"status": "ignored", "reason": "yahuar no pending"}
 
     # ── Auto-aprendizaje: detectar Yahuar aunque no conozcamos su LID ───────
     # Si hay una consulta pendiente Y el remitente NO es el usuario original,
@@ -492,46 +502,45 @@ async def _procesar_item_waha(data: dict) -> dict:
     return {"status": "ok"}
 
 
-async def _manejar_respuesta_yahuar(payload: dict) -> dict:
-    """
-    Yahuar respondió con la info de la placa.
-    Busca en Redis a quién estaba esperando y le reenvía texto + foto.
-    """
-    pendiente = await yahuar_mod.get_pendiente()
-    if not pendiente:
-        print("[YAHUAR] respuesta recibida pero no hay consulta pendiente en Redis")
-        return {"status": "ignored", "reason": "no pending"}
-
-    destino    = pendiente["from_field"]
-    placa      = pendiente.get("placa", "")
+async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
+    """Reenvía texto y/o foto de Yahuar al usuario original."""
     texto_resp = payload.get("body") or ""
     has_media  = payload.get("hasMedia", False)
     media      = payload.get("media") or {}
 
-    print(f"[YAHUAR] respuesta para {destino!r} placa={placa!r} hasMedia={has_media}")
-
     messenger = _messenger()
 
-    # Enviar texto si lo hay
     if texto_resp:
         try:
             await messenger.send_message(destino, "", texto_resp)
+            print(f"[YAHUAR] texto enviado a {destino!r}", flush=True)
         except Exception as e:
-            print(f"[YAHUAR] ERROR enviando texto: {e}")
+            print(f"[YAHUAR] ERROR enviando texto: {e}", flush=True)
 
-    # Enviar imagen si la hay (viene en base64 con WHATSAPP_HOOK_MEDIA_INLINE=true)
     if has_media and media.get("data"):
         try:
             await messenger.send_image_base64(
                 destino, "",
                 media["data"],
-                caption=f"Placa {placa}",
-                filename=f"placa_{placa}.jpg",
+                caption=f"Placa {placa}" if placa else "",
+                filename=f"placa_{placa}.jpg" if placa else "placa.jpg",
             )
+            print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
         except Exception as e:
-            print(f"[YAHUAR] ERROR enviando imagen: {e}")
+            print(f"[YAHUAR] ERROR enviando foto: {e}", flush=True)
 
     return {"status": "ok"}
+
+
+async def _manejar_respuesta_yahuar(payload: dict) -> dict:
+    """Llamado desde el auto-aprendizaje cuando detectamos un LID desconocido de Yahuar."""
+    pendiente = await yahuar_mod.get_pendiente()
+    if not pendiente:
+        return {"status": "ignored", "reason": "no pending"}
+    destino = pendiente["from_field"]
+    placa   = pendiente.get("placa", "")
+    await yahuar_mod.open_relay(destino)
+    return await _reenviar_yahuar(payload, destino, placa)
 
 
 @router_wh.post("/waha")
