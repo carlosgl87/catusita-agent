@@ -564,9 +564,10 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
     mensajes = await yahuar_mod.get_y_limpiar_acumulador()
     print(f"[YAHUAR] procesando {len(mensajes)} mensajes acumulados", flush=True)
 
-    messenger = _messenger()
-    textos    = []
-    imagen_b64 = None
+    messenger   = _messenger()
+    textos      = []
+    imagen_b64  = None
+    imagen_mime = "image/jpeg"
 
     for i, msg in enumerate(mensajes):
         t       = msg.get("body") or ""
@@ -586,21 +587,21 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
             textos.append(t)
         if has_m and not imagen_b64:
             if m_data:
-                imagen_b64 = m_data
+                imagen_b64  = m_data
+                imagen_mime = media.get("mimetype", "image/jpeg")
             elif media.get("url"):
-                # WAHA Core no inlinea base64 — descargamos de la URL con la API key
                 try:
-                    import httpx, base64
+                    import httpx, base64 as b64lib
                     from shared.waha import WAHA_BASE_URL, _headers
                     img_url = media["url"]
-                    # La URL puede ser relativa (ej /api/files/...) o absoluta
                     if img_url.startswith("/"):
                         img_url = f"{WAHA_BASE_URL}{img_url}"
                     async with httpx.AsyncClient(timeout=20) as c:
                         r = await c.get(img_url, headers=_headers())
                         if r.status_code == 200:
-                            imagen_b64 = base64.b64encode(r.content).decode()
-                            print(f"[YAHUAR] imagen descargada desde URL: {len(imagen_b64)} chars", flush=True)
+                            imagen_b64  = b64lib.b64encode(r.content).decode()
+                            imagen_mime = media.get("mimetype") or r.headers.get("content-type", "image/jpeg").split(";")[0]
+                            print(f"[YAHUAR] imagen descargada: {len(imagen_b64)} chars mime={imagen_mime}", flush=True)
                         else:
                             print(f"[YAHUAR] error descargando imagen: {r.status_code}", flush=True)
                 except Exception as e:
@@ -610,8 +611,10 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
     datos_vision = None
     if imagen_b64:
         try:
-            datos_vision = await llm_mod.extraer_texto_de_imagen(imagen_b64, _INSTRUCCION_PLACA)
-            print(f"[YAHUAR] visión OK: {bool(datos_vision)}", flush=True)
+            datos_vision = await llm_mod.extraer_texto_de_imagen(
+                imagen_b64, _INSTRUCCION_PLACA, media_type=imagen_mime
+            )
+            print(f"[YAHUAR] visión OK datos={bool(datos_vision)}", flush=True)
         except Exception as e:
             print(f"[YAHUAR] error visión: {e}", flush=True)
 
@@ -622,13 +625,15 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
         await messenger.send_message(destino, "", "\n\n".join(textos))
 
     if imagen_b64:
+        ext      = imagen_mime.split("/")[-1].replace("jpeg", "jpg")
+        filename = f"placa_{placa}.{ext}"
         try:
             await messenger.send_image_base64(
                 destino, "", imagen_b64,
                 caption=f"Tarjeta vehicular — {placa}",
-                filename=f"placa_{placa}.jpg",
+                filename=filename,
             )
-            print(f"[YAHUAR] foto enviada a {destino!r}", flush=True)
+            print(f"[YAHUAR] foto enviada a {destino!r} ({filename})", flush=True)
         except Exception as e:
             print(f"[YAHUAR] ERROR enviando foto: {e}", flush=True)
 

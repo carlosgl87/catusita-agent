@@ -99,11 +99,18 @@ class WAHAClient:
         Envía una imagen en base64.
         WAHA Core acepta data URI en el campo `file.data`.
         """
-        data_uri = f"data:image/png;base64,{imagen_base64}"
+        # Detectar tipo real desde el filename si no se especificó
+        if filename.lower().endswith(".jpg") or filename.lower().endswith(".jpeg"):
+            mime = "image/jpeg"
+        elif filename.lower().endswith(".png"):
+            mime = "image/png"
+        else:
+            mime = "image/jpeg"
+        data_uri = f"data:{mime};base64,{imagen_base64}"
         body = {
             "session": WAHA_SESSION,
             "chatId": _chat_id(numero),
-            "file": {"mimetype": "image/png", "filename": filename, "data": data_uri},
+            "file": {"mimetype": mime, "filename": filename, "data": data_uri},
             "caption": caption,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
