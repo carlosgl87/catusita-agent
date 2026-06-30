@@ -584,8 +584,27 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
                 )
                 return {"status": "ok"}
             textos.append(t)
-        if has_m and m_data and not imagen_b64:
-            imagen_b64 = m_data
+        if has_m and not imagen_b64:
+            if m_data:
+                imagen_b64 = m_data
+            elif media.get("url"):
+                # WAHA Core no inlinea base64 — descargamos de la URL con la API key
+                try:
+                    import httpx, base64
+                    from shared.waha import WAHA_BASE_URL, _headers
+                    img_url = media["url"]
+                    # La URL puede ser relativa (ej /api/files/...) o absoluta
+                    if img_url.startswith("/"):
+                        img_url = f"{WAHA_BASE_URL}{img_url}"
+                    async with httpx.AsyncClient(timeout=20) as c:
+                        r = await c.get(img_url, headers=_headers())
+                        if r.status_code == 200:
+                            imagen_b64 = base64.b64encode(r.content).decode()
+                            print(f"[YAHUAR] imagen descargada desde URL: {len(imagen_b64)} chars", flush=True)
+                        else:
+                            print(f"[YAHUAR] error descargando imagen: {r.status_code}", flush=True)
+                except Exception as e:
+                    print(f"[YAHUAR] excepción descargando imagen: {e}", flush=True)
 
     # Extraer datos del vehículo si hay imagen
     datos_vision = None
