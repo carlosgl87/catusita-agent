@@ -106,11 +106,14 @@ class WAHAClient:
             mime = "image/png"
         else:
             mime = "image/jpeg"
-        data_uri = f"data:{mime};base64,{imagen_base64}"
+        # WAHA Core usa atob(data) internamente → necesita base64 crudo, sin prefijo data URI
+        raw_b64 = imagen_base64
+        if raw_b64.startswith("data:"):
+            raw_b64 = raw_b64.split(",", 1)[1]
         body = {
             "session": WAHA_SESSION,
             "chatId": _chat_id(numero),
-            "file": {"mimetype": mime, "filename": filename, "data": data_uri},
+            "file": {"mimetype": mime, "filename": filename, "data": raw_b64},
             "caption": caption,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
