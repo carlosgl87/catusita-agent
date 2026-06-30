@@ -568,8 +568,12 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
     textos    = []
     imagen_b64 = None
 
-    for msg in mensajes:
-        t = msg.get("body") or ""
+    for i, msg in enumerate(mensajes):
+        t       = msg.get("body") or ""
+        has_m   = msg.get("hasMedia", False)
+        media   = msg.get("media") or {}
+        m_data  = media.get("data")
+        print(f"[YAHUAR] msg[{i}] body={t[:40]!r} hasMedia={has_m} media_keys={list(media.keys())} data_len={len(m_data) if m_data else 0}", flush=True)
         if t:
             t_low = t.lower()
             if any(e in t_low for e in _ERRORES_YAHUAR):
@@ -580,9 +584,8 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
                 )
                 return {"status": "ok"}
             textos.append(t)
-        media = msg.get("media") or {}
-        if msg.get("hasMedia") and media.get("data") and not imagen_b64:
-            imagen_b64 = media["data"]
+        if has_m and m_data and not imagen_b64:
+            imagen_b64 = m_data
 
     # Extraer datos del vehículo si hay imagen
     datos_vision = None
