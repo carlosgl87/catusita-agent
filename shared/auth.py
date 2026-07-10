@@ -9,56 +9,58 @@ USE_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 # devuelve los 3579 clientes de toda la empresa).
 SELLER_ID_DEMO = os.getenv("SELLER_ID_DEMO", "2")
 
-# Usuarios mock para desarrollo sin base de datos
+# Vendedores reales de prueba: cada número de WhatsApp mapeado a su SellerId real
+# de Catusita (ver docs/vendedores_directorio.md). El vendedor_id es el SellerId
+# que se pasa a /vendedor/{id}/clientes para traer SU cartera.
 _MOCK_ASESORES = {
-    "51987654321": {
-        "user_id": "asesor-001",
+    "51958133722": {
+        "user_id": "asesor-28",
         "tipo": "asesor",
-        "nombre": "Luis García",
-        "linea_asignada": "filtros y lubricantes",
+        "nombre": "Saavedra Cicirello Jose Domingo",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-001",
-        "vendedor_id": SELLER_ID_DEMO,   # ← ID que usa el Mock SAP Server
+        "asesor_id": "0051",
+        "vendedor_id": "28",   # 294 clientes
         "autenticado": True,
     },
-    "51912345678": {
-        "user_id": "asesor-002",
+    "51948985984": {
+        "user_id": "asesor-50",
         "tipo": "asesor",
-        "nombre": "María Torres",
-        "linea_asignada": "frenos y suspensión",
+        "nombre": "Revolledo Humala Paulo",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-002",
-        "vendedor_id": SELLER_ID_DEMO,   # ← ID que usa el Mock SAP Server
+        "asesor_id": "0037",
+        "vendedor_id": "50",   # 274 clientes
         "autenticado": True,
     },
-    "51940351180": {
-        "user_id": "asesor-003",
+    "51917842636": {
+        "user_id": "asesor-78",
         "tipo": "asesor",
-        "nombre": "Gabriel Cánepa",
-        "linea_asignada": "filtros y lubricantes",
+        "nombre": "Lupuche Morante Patricia Veronica",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-003",
-        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "asesor_id": "0021",
+        "vendedor_id": "78",   # 216 clientes
         "autenticado": True,
     },
-    "51979405331": {
-        "user_id": "asesor-004",
+    "51998321666": {
+        "user_id": "asesor-53",
         "tipo": "asesor",
-        "nombre": "Carlos Gamero",
-        "linea_asignada": "filtros y lubricantes",
+        "nombre": "Quispe Tasa William",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-004",
-        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "asesor_id": "0009",
+        "vendedor_id": "53",   # 186 clientes
         "autenticado": True,
     },
-    "51941310500": {
-        "user_id": "asesor-005",
+    "51960189568": {
+        "user_id": "asesor-22",
         "tipo": "asesor",
-        "nombre": "Gabriel Villanueva",
-        "linea_asignada": "filtros y lubricantes",
+        "nombre": "Peña Alva Mariluz Milagros",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-005",
-        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA
+        "asesor_id": "0043",
+        "vendedor_id": "22",   # 184 clientes
         "autenticado": True,
     },
 }
