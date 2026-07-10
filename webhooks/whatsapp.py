@@ -442,6 +442,16 @@ async def _procesar_item_waha(data: dict) -> dict:
         print("[WAHA] ignorado: no texto", flush=True)
         return {"status": "ignored", "reason": "no text"}
 
+    # ── Resolver LID → teléfono para el login ────────────────────────────────
+    # WAHA entrega el LID interno de Meta ('<lid>@lid') para varios contactos, pero
+    # el registro de asesores es por número de teléfono. Lo traducimos vía WAHA
+    # antes de autenticar. Las respuestas siguen yendo a from_field (el LID).
+    if "@lid" in from_field:
+        tel = await waha_mod.resolve_lid_to_phone(from_field)
+        if tel:
+            print(f"[WAHA] LID {numero!r} → tel {tel!r}", flush=True)
+            numero = tel
+
     # Reutilizamos toda la lógica del agente — phone_number_id vacío porque
     # WAHA no tiene ese concepto (usamos session en su lugar).
     agente_tipo = "vendedor"  # por ahora solo el canal de vendedores

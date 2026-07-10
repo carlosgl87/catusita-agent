@@ -39,6 +39,29 @@ def _chat_id(numero: str) -> str:
     return f"{n}@c.us"
 
 
+async def resolve_lid_to_phone(lid: str) -> str | None:
+    """Traduce un LID de Meta ('<lid>@lid') al número de teléfono ('51...').
+
+    WhatsApp/WAHA entrega para algunos contactos el LID interno de Meta en vez del
+    teléfono. WAHA expone el mapeo en:
+        GET /api/{session}/lids/{lid}  ->  {"lid": "...@lid", "pn": "51...@c.us"}
+    Devuelve solo los dígitos del teléfono, o None si no se pudo resolver.
+    """
+    lid_id = lid if lid.endswith("@lid") else f"{lid}@lid"
+    url = f"{WAHA_BASE_URL}/api/{WAHA_SESSION}/lids/{lid_id}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=_headers())
+            if resp.status_code == 200:
+                pn = (resp.json() or {}).get("pn", "") or ""
+                tel = pn.split("@")[0].lstrip("+")
+                return tel or None
+            print(f"[WAHA] lids/{lid_id} -> {resp.status_code}", flush=True)
+    except Exception as e:
+        print(f"[WAHA] error resolviendo LID {lid_id}: {e}", flush=True)
+    return None
+
+
 class WAHAClient:
     async def send_message(self, numero: str, instance: str, texto: str) -> dict:
         """
