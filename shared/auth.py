@@ -83,6 +83,20 @@ _MOCK_ASESORES = {
         "vendedor_id": "29",   # 163 clientes
         "autenticado": True,
     },
+    # ── LIDs ──────────────────────────────────────────────────────────────────
+    # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
+    # vez del teléfono. Ese LID es estable por cuenta, así que se mapea igual que
+    # un número. Se captura de los logs: [WAHA] from='<lid>@lid'.
+    "111621938671767": {   # LID de Gabriel (tel 51940351180) → Osorio
+        "user_id": "asesor-58",
+        "tipo": "asesor",
+        "nombre": "Osorio Echevarria Roger Alcides",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0074",
+        "vendedor_id": "58",   # 171 clientes
+        "autenticado": True,
+    },
 }
 
 _MOCK_CLIENTES_RUC = {
@@ -112,10 +126,10 @@ def _asesor_sandbox(numero_whatsapp: str) -> dict:
     return {
         "user_id": f"asesor-sandbox-{numero_whatsapp}",
         "tipo": "asesor",
-        "nombre": "Luis García",
-        "linea_asignada": "filtros y lubricantes",
+        "nombre": "Asesor Catusita",
+        "linea_asignada": "",
         "nivel_acceso": "completo",
-        "asesor_id": "ASE-001",
+        "asesor_id": "ASE-DEMO",
         "vendedor_id": SELLER_ID_DEMO,
         "whatsapp_number": numero_whatsapp,
         "autenticado": True,
