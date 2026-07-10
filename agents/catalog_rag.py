@@ -25,9 +25,14 @@ async def buscar_catalogo(query: str, placa: str = None, vin: str = None) -> dic
 
     # Búsqueda en catálogo por texto
     result = await sap.get_catalogo(q=query)
-    return {
+    salida = {
         "query": query,
         "vehiculo": vehiculo,
         "resultados": result.get("productos", []),
         "total": result.get("total", 0),
     }
+    # El servicio de datos ya limita los resultados; si truncó, propaga la nota
+    # para que el agente le pida al usuario afinar la búsqueda.
+    if result.get("nota"):
+        salida["nota"] = result["nota"]
+    return salida
