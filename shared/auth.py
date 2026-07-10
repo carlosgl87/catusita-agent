@@ -63,6 +63,16 @@ _MOCK_ASESORES = {
         "vendedor_id": "22",   # 184 clientes
         "autenticado": True,
     },
+    "51940351180": {
+        "user_id": "asesor-58",
+        "tipo": "asesor",
+        "nombre": "Osorio Echevarria Roger Alcides",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0074",
+        "vendedor_id": "58",   # 171 clientes
+        "autenticado": True,
+    },
 }
 
 _MOCK_CLIENTES_RUC = {
