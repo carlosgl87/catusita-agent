@@ -73,6 +73,16 @@ _MOCK_ASESORES = {
         "vendedor_id": "58",   # 171 clientes
         "autenticado": True,
     },
+    "51979405331": {
+        "user_id": "asesor-29",
+        "tipo": "asesor",
+        "nombre": "Escobar Herrera Stephanny",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0052",
+        "vendedor_id": "29",   # 163 clientes
+        "autenticado": True,
+    },
 }
 
 _MOCK_CLIENTES_RUC = {
