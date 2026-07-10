@@ -404,19 +404,17 @@ async def registrar_reclamo(
 
 # ─── Toolsets por canal ───────────────────────────────────────────────────────
 
+# NOTA: al migrar del Mock SAP a la API real de Catusita (tools-agente-catusita),
+# se APAGARON las tools sin dato de origen real: buscar_pedido_por_id,
+# consultar_pedidos, consultar_credito, consultar_cobranzas, consultar_historial,
+# obtener_documentos e identificar_vehiculo. Sus @tool y wrappers en agents/ siguen
+# definidos pero NO se exponen al modelo. Ver docs/plan_migracion_api_real.md.
 TOOLS_VENDEDOR_LC = [
     consultar_stock,
     consultar_precio,
-    buscar_pedido_por_id,
-    consultar_pedidos,
-    consultar_credito,
-    consultar_cobranzas,
-    consultar_historial,
-    obtener_documentos,
     consultar_cartera,
     consultar_perfil_cliente,
     buscar_catalogo,
-    identificar_vehiculo,
     consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]
@@ -424,11 +422,7 @@ TOOLS_VENDEDOR_LC = [
 TOOLS_CLIENTE_LC = [
     consultar_stock,
     consultar_precio,
-    buscar_pedido_por_id,
-    consultar_pedidos,
-    obtener_documentos,
     buscar_catalogo,
-    identificar_vehiculo,
     consultar_placa_sunarp,
     registrar_reclamo,
 ]

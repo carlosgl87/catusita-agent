@@ -12,12 +12,9 @@ from agents import cartera
 
 # Tools cuyo RUC debe pertenecer a la cartera del asesor antes de ejecutarse.
 # El valor es el nombre del argumento que contiene el RUC del cliente.
+# Tras la migración a la API real, las tools de crédito/cobranzas/historial/
+# pedidos/documentos están apagadas; solo queda consultar_perfil_cliente.
 RUC_SCOPED_TOOLS = {
-    "consultar_credito": "cliente_ruc",
-    "consultar_cobranzas": "cliente_ruc",
-    "consultar_historial": "cliente_ruc",
-    "consultar_pedidos": "cliente_ruc",
-    "obtener_documentos": "cliente_ruc",
     "consultar_perfil_cliente": "ruc",
 }
 
