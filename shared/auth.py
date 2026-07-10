@@ -3,6 +3,12 @@ from db import models
 
 USE_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 
+# SellerId real de Catusita que se usa como cartera de PRUEBA mientras no exista el
+# mapeo definitivo número_WhatsApp -> SellerId (ver docs/vendedores_directorio.md).
+# Default "2" = "Tarazona Davila Jefer" (85 clientes). NUNCA usar "1" (bucket Gerencia,
+# devuelve los 3579 clientes de toda la empresa).
+SELLER_ID_DEMO = os.getenv("SELLER_ID_DEMO", "2")
+
 # Usuarios mock para desarrollo sin base de datos
 _MOCK_ASESORES = {
     "51987654321": {
@@ -12,7 +18,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-001",
-        "vendedor_id": "V001",   # ← ID que usa el Mock SAP Server
+        "vendedor_id": SELLER_ID_DEMO,   # ← ID que usa el Mock SAP Server
         "autenticado": True,
     },
     "51912345678": {
@@ -22,7 +28,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "frenos y suspensión",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-002",
-        "vendedor_id": "V002",   # ← ID que usa el Mock SAP Server
+        "vendedor_id": SELLER_ID_DEMO,   # ← ID que usa el Mock SAP Server
         "autenticado": True,
     },
     "51940351180": {
@@ -32,7 +38,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-003",
-        "vendedor_id": "V001",   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA (Transportes Andinos, etc.)
         "autenticado": True,
     },
     "51979405331": {
@@ -42,7 +48,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-004",
-        "vendedor_id": "V001",   # ← cartera con datos de QA (Transportes Andinos, etc.)
+        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA (Transportes Andinos, etc.)
         "autenticado": True,
     },
     "51941310500": {
@@ -52,7 +58,7 @@ _MOCK_ASESORES = {
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-005",
-        "vendedor_id": "V001",   # ← cartera con datos de QA
+        "vendedor_id": SELLER_ID_DEMO,   # ← cartera con datos de QA
         "autenticado": True,
     },
 }
@@ -88,7 +94,7 @@ def _asesor_sandbox(numero_whatsapp: str) -> dict:
         "linea_asignada": "filtros y lubricantes",
         "nivel_acceso": "completo",
         "asesor_id": "ASE-001",
-        "vendedor_id": "V001",
+        "vendedor_id": SELLER_ID_DEMO,
         "whatsapp_number": numero_whatsapp,
         "autenticado": True,
     }
