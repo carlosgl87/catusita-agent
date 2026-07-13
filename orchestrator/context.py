@@ -52,6 +52,31 @@ async def clear_history(numero: str):
         pass
 
 
+async def list_conversations() -> list:
+    """Lista todas las conversaciones activas en Redis (para el panel de chats).
+
+    Devuelve [{numero, mensajes: [{role, content}], ttl}] recorriendo las keys
+    conversation:*. No incluye claves internas (idemp:, yahuar:).
+    """
+    chats = []
+    try:
+        r = await _get_redis()
+        async for key in r.scan_iter(match="conversation:*", count=200):
+            numero = key.split("conversation:", 1)[1]
+            raw = await r.get(key)
+            if not raw:
+                continue
+            try:
+                mensajes = json.loads(raw)
+            except Exception:
+                mensajes = []
+            ttl = await r.ttl(key)
+            chats.append({"numero": numero, "mensajes": mensajes, "ttl": ttl})
+    except Exception:
+        pass
+    return chats
+
+
 async def ya_procesado(idempotency_key: str, ttl: int = 600) -> bool:
     """Idempotencia: True si esta key ya se procesó (y entonces hay que ignorarla).
 

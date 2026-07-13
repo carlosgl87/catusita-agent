@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from webhooks.whatsapp import router_wh as whatsapp_router
+from dashboard.panel import router_panel
 
 
 @asynccontextmanager
@@ -25,3 +26,4 @@ async def health():
 
 
 app.include_router(whatsapp_router, prefix="/webhook")
+app.include_router(router_panel)
