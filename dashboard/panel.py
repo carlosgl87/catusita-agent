@@ -166,7 +166,7 @@ _HTML = """<!doctype html>
 const TOKEN="__TOKEN__"; let data=[], sel=null;
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function lista(){document.getElementById('list').innerHTML=data.map(c=>`<div class="item ${sel===c.numero?'sel':''}" onclick="sel='${c.numero}';lista();chat();"><div class="n">${c.vendedor||c.numero}</div><div class="v">${c.numero} · ${c.n} msgs</div></div>`).join('')||'<div class="empty">Sin chats</div>';}
-function chat(){const c=data.find(x=>x.numero===sel);document.getElementById('chat').innerHTML=c?c.mensajes.map(m=>`<div class="msg ${m.role}"><div class="role">${m.role==='user'?'cliente':'Catu'}</div>${esc(m.content)}</div>`).join(''):'<div class="empty">Elegí una conversación</div>';}
+function chat(){const c=data.find(x=>x.numero===sel);document.getElementById('chat').innerHTML=c?c.mensajes.map(m=>`<div class="msg ${m.role}"><div class="role">${m.role==='user'?'vendedor':'Catu'}</div>${esc(m.content)}</div>`).join(''):'<div class="empty">Elegí una conversación</div>';}
 async function load(){try{const r=await fetch('/panel/api/chats?token='+encodeURIComponent(TOKEN));const j=await r.json();data=j.chats||[];document.getElementById('meta').textContent=j.total+' chats · 5s';if(!sel&&data.length)sel=data[0].numero;lista();chat();}catch(e){}}
 load();setInterval(load,5000);
 </script></body></html>"""
