@@ -115,13 +115,14 @@ _LIMA = "(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')"
 
 
 def _filtros(vendedor_id, desde, hasta):
+    # desde/hasta son fechas de calendario en hora de Lima, ambas inclusivas.
     conds, params = [], []
     if vendedor_id:
         params.append(vendedor_id); conds.append(f"vendedor_id = ${len(params)}")
     if desde:
-        params.append(desde); conds.append(f"created_at >= ${len(params)}::timestamptz")
+        params.append(desde); conds.append(f"{_LIMA}::date >= ${len(params)}::date")
     if hasta:
-        params.append(hasta); conds.append(f"created_at < ${len(params)}::timestamptz")
+        params.append(hasta); conds.append(f"{_LIMA}::date <= ${len(params)}::date")
     return conds, params
 
 
