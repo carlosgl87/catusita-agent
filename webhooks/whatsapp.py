@@ -654,6 +654,29 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
         except Exception as e:
             print(f"[YAHUAR] ERROR enviando foto: {e}", flush=True)
 
+    # Guardar el resultado de la placa en el historial (Redis + panel), en el
+    # mismo hilo del vendedor. El relay va por fuera del flujo normal de guardado,
+    # así que hay que persistirlo acá a mano.
+    partes = []
+    if datos_vision:
+        partes.append(f"🚗 Placa {placa}\n\n{datos_vision}")
+    elif textos:
+        partes.append("\n\n".join(textos))
+    if imagen_b64:
+        partes.append(f"📷 [Foto de la tarjeta vehicular — {placa}]")
+    if partes:
+        contenido = "\n\n".join(partes)
+        numero_dest = destino.split("@")[0].lstrip("+")
+        if "@lid" in destino:
+            tel = await waha_mod.resolve_lid_to_phone(destino)
+            if tel:
+                numero_dest = tel
+        try:
+            await context.save_message(numero_dest, "assistant", contenido)
+            await models.save_chat_message(numero_dest, "assistant", contenido)
+        except Exception as e:
+            print(f"[YAHUAR] error guardando resultado: {e}", flush=True)
+
     return {"status": "ok"}
 
 
