@@ -58,6 +58,51 @@ async def log_tool_usage(conversation_id: str, vendedor_id: str,
         )
 
 
+async def save_chat_message(numero: str, rol: str, contenido: str) -> None:
+    """Guarda un mensaje en la tabla plana del panel (persistente)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO chat_messages (numero, rol, contenido) VALUES ($1, $2, $3)",
+            numero, rol, contenido,
+        )
+
+
+async def list_chats() -> list:
+    """Lista de conversaciones: numero, cantidad, último mensaje y fecha."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT m.numero,
+                   COUNT(*)                              AS n,
+                   MAX(m.created_at)                     AS last_ts,
+                   (SELECT contenido FROM chat_messages x
+                     WHERE x.numero = m.numero
+                     ORDER BY x.created_at DESC LIMIT 1) AS last_msg
+              FROM chat_messages m
+             GROUP BY m.numero
+             ORDER BY last_ts DESC
+            """
+        )
+    return [dict(r) for r in rows]
+
+
+async def get_chat_messages(numero: str, limit: int = 500) -> list:
+    """Mensajes de una conversación, en orden cronológico."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT rol, contenido, created_at
+                 FROM chat_messages
+                WHERE numero = $1
+                ORDER BY created_at ASC
+                LIMIT $2""",
+            numero, limit,
+        )
+    return [dict(r) for r in rows]
+
+
 async def create_claim(conversation_id: str, pedido_id: str, motivo: str) -> str:
     pool = await get_pool()
     numero = f"REC-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}"

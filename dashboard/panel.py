@@ -1,29 +1,116 @@
-"""Panel web de chats (aparte de WAHA).
+"""Panel de chats — API para el front Vite (persistente + seguro) y vista legacy.
 
-Read-only. Lee las conversaciones activas de Redis y las muestra en una página
-tipo WhatsApp, con auto-refresco. Protegido por un token simple (?token=...).
+Seguridad: login con contraseña -> token firmado (HMAC-SHA256, sin dependencias).
+El front (Vite) guarda el token y lo manda como `Authorization: Bearer <token>`.
 
-Rutas:
-  GET /panel?token=...            -> página HTML
-  GET /panel/api/chats?token=...  -> JSON con las conversaciones
+Rutas nuevas (para el front Vite, datos de Postgres, persistentes):
+  POST /api/panel/login            {password} -> {token, exp}
+  GET  /api/panel/chats            (Bearer)   -> [{numero, vendedor, n, last_ts, last_msg}]
+  GET  /api/panel/chats/{numero}   (Bearer)   -> {numero, vendedor, mensajes:[...]}
+
+Ruta legacy (vista rápida en vivo desde Redis, token por query):
+  GET  /panel?token=...            página HTML simple
+  GET  /panel/api/chats?token=...  JSON desde Redis
 """
 import os
+import json
+import time
+import hmac
+import base64
+import hashlib
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Header, Body, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from orchestrator import context
 from shared import auth
+from db import models
 
 router_panel = APIRouter()
 
-PANEL_TOKEN = os.getenv("PANEL_TOKEN", "catu2026")
+PANEL_TOKEN    = os.getenv("PANEL_TOKEN", "catu2026")            # legacy (Redis view)
+PANEL_PASSWORD = os.getenv("PANEL_PASSWORD", "catusita2026")     # login del front
+PANEL_SECRET   = os.getenv("PANEL_SECRET", "cambia-esto-en-prod")
+TOKEN_TTL      = 12 * 3600                                        # 12 horas
+
+
+# ─── Token firmado (HMAC, sin librerías externas) ─────────────────────────────
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _unb64(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def _sign(payload: dict) -> str:
+    body = _b64(json.dumps(payload, separators=(",", ":")).encode())
+    sig = hmac.new(PANEL_SECRET.encode(), body.encode(), hashlib.sha256).digest()
+    return f"{body}.{_b64(sig)}"
+
+
+def _verify(token: str) -> bool:
+    try:
+        body, sig = token.split(".", 1)
+        expected = _b64(hmac.new(PANEL_SECRET.encode(), body.encode(), hashlib.sha256).digest())
+        if not hmac.compare_digest(sig, expected):
+            return False
+        payload = json.loads(_unb64(body))
+        return payload.get("exp", 0) > time.time()
+    except Exception:
+        return False
+
+
+def _auth(authorization: str = Header("")) -> None:
+    token = authorization.replace("Bearer", "").strip()
+    if not _verify(token):
+        raise HTTPException(status_code=401, detail="no autorizado")
 
 
 def _vendedor(numero: str) -> str:
     perfil = auth._MOCK_ASESORES.get(numero)
     return perfil.get("nombre", "") if perfil else ""
 
+
+# ─── API nueva (front Vite, Postgres) ─────────────────────────────────────────
+
+@router_panel.post("/api/panel/login")
+async def login(body: dict = Body(...)):
+    if (body or {}).get("password") != PANEL_PASSWORD:
+        raise HTTPException(status_code=401, detail="contraseña incorrecta")
+    exp = int(time.time()) + TOKEN_TTL
+    return {"token": _sign({"exp": exp}), "exp": exp}
+
+
+@router_panel.get("/api/panel/chats")
+async def api_panel_chats(authorization: str = Header("")):
+    _auth(authorization)
+    try:
+        chats = await models.list_chats()
+    except Exception:
+        chats = []
+    for c in chats:
+        c["vendedor"] = _vendedor(c["numero"])
+        if c.get("last_ts"):
+            c["last_ts"] = c["last_ts"].isoformat()
+    return {"chats": chats, "total": len(chats)}
+
+
+@router_panel.get("/api/panel/chats/{numero}")
+async def api_panel_chat(numero: str, authorization: str = Header("")):
+    _auth(authorization)
+    try:
+        msgs = await models.get_chat_messages(numero)
+    except Exception:
+        msgs = []
+    for m in msgs:
+        if m.get("created_at"):
+            m["created_at"] = m["created_at"].isoformat()
+    return {"numero": numero, "vendedor": _vendedor(numero), "mensajes": msgs}
+
+
+# ─── Vista legacy (Redis, token por query) ────────────────────────────────────
 
 @router_panel.get("/panel/api/chats")
 async def api_chats(token: str = Query("")):
@@ -33,7 +120,6 @@ async def api_chats(token: str = Query("")):
     for c in chats:
         c["vendedor"] = _vendedor(c["numero"])
         c["n"] = len(c.get("mensajes", []))
-    # más mensajes primero (proxy de actividad reciente)
     chats.sort(key=lambda c: c["n"], reverse=True)
     return JSONResponse({"chats": chats, "total": len(chats)})
 
@@ -52,12 +138,12 @@ async def panel(token: str = Query("")):
 _HTML = """<!doctype html>
 <html lang="es"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catu · Panel de chats</title>
+<title>Catu · Panel (legacy)</title>
 <style>
   * { box-sizing: border-box; }
   body { margin:0; font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#0b141a; color:#e9edef; }
-  header { background:#202c33; padding:12px 18px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:5; }
-  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header { background:#202c33; padding:12px 18px; display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:16px; margin:0; }
   header .meta { color:#8696a0; font-size:13px; margin-left:auto; }
   .wrap { display:flex; height:calc(100vh - 46px); }
   .list { width:320px; border-right:1px solid #222d34; overflow-y:auto; flex-shrink:0; }
@@ -65,63 +151,22 @@ _HTML = """<!doctype html>
   .item:hover, .item.sel { background:#202c33; }
   .item .n { font-weight:600; font-size:14px; }
   .item .v { color:#8696a0; font-size:12px; margin-top:2px; }
-  .item .c { color:#667781; font-size:12px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .chat { flex:1; overflow-y:auto; padding:18px 8%; background-image:linear-gradient(#0b141a,#0b141a); }
+  .chat { flex:1; overflow-y:auto; padding:18px 8%; }
   .empty { color:#8696a0; text-align:center; margin-top:60px; }
-  .msg { max-width:70%; padding:8px 11px; border-radius:8px; margin:6px 0; font-size:14px; line-height:1.35; white-space:pre-wrap; word-wrap:break-word; }
-  .user { background:#202c33; margin-right:auto; border-top-left-radius:0; }
-  .assistant { background:#005c4b; margin-left:auto; border-top-right-radius:0; }
-  .role { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#8696a0; margin-bottom:2px; }
-  .chat h2 { font-size:15px; color:#e9edef; position:sticky; top:0; background:#111b21; padding:10px 14px; border-radius:8px; margin:0 0 10px; }
+  .msg { max-width:70%; padding:8px 11px; border-radius:8px; margin:6px 0; font-size:14px; white-space:pre-wrap; }
+  .user { background:#202c33; margin-right:auto; }
+  .assistant { background:#005c4b; margin-left:auto; }
+  .role { font-size:10px; text-transform:uppercase; color:#8696a0; margin-bottom:2px; }
 </style></head>
 <body>
-<header>
-  <h1>💬 Catu · Panel de chats</h1>
-  <span class="meta" id="meta">cargando…</span>
-</header>
-<div class="wrap">
-  <div class="list" id="list"></div>
-  <div class="chat" id="chat"><div class="empty">Elegí una conversación de la izquierda</div></div>
-</div>
+<header><h1>💬 Catu · Panel (legacy Redis)</h1><span class="meta" id="meta">cargando…</span></header>
+<div class="wrap"><div class="list" id="list"></div>
+<div class="chat" id="chat"><div class="empty">Elegí una conversación</div></div></div>
 <script>
-const TOKEN = "__TOKEN__";
-let data = [], sel = null;
-
-function pintarLista() {
-  const list = document.getElementById('list');
-  list.innerHTML = data.map((c,i) => {
-    const last = c.mensajes.length ? c.mensajes[c.mensajes.length-1].content : '';
-    return `<div class="item ${sel===c.numero?'sel':''}" onclick="elegir('${c.numero}')">
-      <div class="n">${c.vendedor || c.numero}</div>
-      <div class="v">${c.vendedor ? c.numero : 'sin identificar'} · ${c.n} msgs</div>
-      <div class="c">${escapeHtml(last).slice(0,60)}</div>
-    </div>`;
-  }).join('') || '<div class="empty" style="padding:20px">Sin chats activos</div>';
-}
-
-function pintarChat() {
-  const chat = document.getElementById('chat');
-  const c = data.find(x => x.numero === sel);
-  if (!c) { chat.innerHTML = '<div class="empty">Elegí una conversación</div>'; return; }
-  chat.innerHTML = `<h2>${c.vendedor || c.numero} <span style="color:#8696a0;font-weight:400">· ${c.numero}</span></h2>` +
-    c.mensajes.map(m => `<div class="msg ${m.role}">
-      <div class="role">${m.role==='user'?'cliente':'Catu'}</div>${escapeHtml(m.content)}</div>`).join('');
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function elegir(num) { sel = num; pintarLista(); pintarChat(); }
-function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-
-async function cargar() {
-  try {
-    const r = await fetch('/panel/api/chats?token=' + encodeURIComponent(TOKEN));
-    const j = await r.json();
-    data = j.chats || [];
-    document.getElementById('meta').textContent = j.total + ' chats · actualiza cada 5s';
-    if (!sel && data.length) sel = data[0].numero;
-    pintarLista(); pintarChat();
-  } catch(e) { document.getElementById('meta').textContent = 'error al cargar'; }
-}
-cargar(); setInterval(cargar, 5000);
-</script>
-</body></html>"""
+const TOKEN="__TOKEN__"; let data=[], sel=null;
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function lista(){document.getElementById('list').innerHTML=data.map(c=>`<div class="item ${sel===c.numero?'sel':''}" onclick="sel='${c.numero}';lista();chat();"><div class="n">${c.vendedor||c.numero}</div><div class="v">${c.numero} · ${c.n} msgs</div></div>`).join('')||'<div class="empty">Sin chats</div>';}
+function chat(){const c=data.find(x=>x.numero===sel);document.getElementById('chat').innerHTML=c?c.mensajes.map(m=>`<div class="msg ${m.role}"><div class="role">${m.role==='user'?'cliente':'Catu'}</div>${esc(m.content)}</div>`).join(''):'<div class="empty">Elegí una conversación</div>';}
+async function load(){try{const r=await fetch('/panel/api/chats?token='+encodeURIComponent(TOKEN));const j=await r.json();data=j.chats||[];document.getElementById('meta').textContent=j.total+' chats · 5s';if(!sel&&data.length)sel=data[0].numero;lista();chat();}catch(e){}}
+load();setInterval(load,5000);
+</script></body></html>"""

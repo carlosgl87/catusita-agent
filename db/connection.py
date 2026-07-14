@@ -22,11 +22,16 @@ async def get_pool() -> asyncpg.Pool:
 
 async def init_db():
     pool = await get_pool()
-    migration_path = os.path.join(os.path.dirname(__file__), "migrations", "001_initial.sql")
-    with open(migration_path) as f:
-        sql = f.read()
-    async with pool.acquire() as conn:
-        await conn.execute(sql)
+    mig_dir = os.path.join(os.path.dirname(__file__), "migrations")
+    # Corre todas las migraciones *.sql en orden alfabético (001, 002, ...).
+    # Son idempotentes (CREATE ... IF NOT EXISTS), así que es seguro cada arranque.
+    for name in sorted(os.listdir(mig_dir)):
+        if not name.endswith(".sql"):
+            continue
+        with open(os.path.join(mig_dir, name)) as f:
+            sql = f.read()
+        async with pool.acquire() as conn:
+            await conn.execute(sql)
 
 
 async def close_db():

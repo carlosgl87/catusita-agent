@@ -484,6 +484,13 @@ async def _procesar_item_waha(data: dict) -> dict:
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
 
+    # Persistencia del panel (tabla plana, permanente). Best-effort: nunca rompe el flujo.
+    try:
+        await models.save_chat_message(numero, "user", texto)
+        await models.save_chat_message(numero, "assistant", respuesta)
+    except Exception as e:
+        logging.error(f"Error guardando chat_messages: {e}")
+
     if PERSIST_TO_DB or not USE_AUTH_MOCK:
         try:
             await models.save_message(conversation_id, "user", texto)
