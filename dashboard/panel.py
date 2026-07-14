@@ -18,6 +18,17 @@ import time
 import hmac
 import base64
 import hashlib
+from datetime import timezone
+
+
+def _iso_utc(dt):
+    """Marca un datetime naive (guardado en UTC) como UTC, para que el front lo
+    convierta bien a hora de Lima. Si ya tiene tz, lo respeta."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
 
 from fastapi import APIRouter, Query, Header, Body, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -93,7 +104,7 @@ async def api_panel_chats(authorization: str = Header("")):
     for c in chats:
         c["vendedor"] = _vendedor(c["numero"])
         if c.get("last_ts"):
-            c["last_ts"] = c["last_ts"].isoformat()
+            c["last_ts"] = _iso_utc(c["last_ts"])
     return {"chats": chats, "total": len(chats)}
 
 
@@ -106,7 +117,7 @@ async def api_panel_chat(numero: str, authorization: str = Header("")):
         msgs = []
     for m in msgs:
         if m.get("created_at"):
-            m["created_at"] = m["created_at"].isoformat()
+            m["created_at"] = _iso_utc(m["created_at"])
     return {"numero": numero, "vendedor": _vendedor(numero), "mensajes": msgs}
 
 
