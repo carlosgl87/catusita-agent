@@ -3,7 +3,7 @@ Helpers para insertar y consultar registros en las tablas principales.
 No usa ORM — queries directas con asyncpg para máxima velocidad.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from db.connection import get_pool
 
 
@@ -114,15 +114,27 @@ async def list_vendedores() -> list:
 _LIMA = "(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')"
 
 
+def _to_date(s):
+    """Convierte 'YYYY-MM-DD' a datetime.date (asyncpg necesita el objeto, no el string)."""
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except Exception:
+        return None
+
+
 def _filtros(vendedor_id, desde, hasta):
     # desde/hasta son fechas de calendario en hora de Lima, ambas inclusivas.
     conds, params = [], []
     if vendedor_id:
         params.append(vendedor_id); conds.append(f"vendedor_id = ${len(params)}")
-    if desde:
-        params.append(desde); conds.append(f"{_LIMA}::date >= ${len(params)}::date")
-    if hasta:
-        params.append(hasta); conds.append(f"{_LIMA}::date <= ${len(params)}::date")
+    d = _to_date(desde)
+    if d:
+        params.append(d); conds.append(f"{_LIMA}::date >= ${len(params)}")
+    h = _to_date(hasta)
+    if h:
+        params.append(h); conds.append(f"{_LIMA}::date <= ${len(params)}")
     return conds, params
 
 
