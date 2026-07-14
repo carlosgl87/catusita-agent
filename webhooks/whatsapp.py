@@ -35,6 +35,9 @@ import uuid
 import json
 import asyncio
 import logging
+import hashlib
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, HTTPException
 
@@ -48,6 +51,12 @@ from orchestrator import context
 from db import models
 
 router_wh = APIRouter()
+
+
+def _session_id(numero: str) -> str:
+    """Conversación = una por vendedor por día (fecha en hora de Lima)."""
+    fecha_lima = datetime.now(ZoneInfo("America/Lima")).date().isoformat()
+    return hashlib.md5(f"{numero}|{fecha_lima}".encode()).hexdigest()
 
 # Referencias fuertes a las tareas en segundo plano para que el GC no las
 # recoja a media ejecución (asyncio solo guarda weakrefs a las tasks).
@@ -191,7 +200,7 @@ async def _procesar_item(item: dict) -> dict:
     )
 
     if USE_LANGGRAPH:
-        respuesta, media_list = await run_agent_graph_full(texto, perfil, historial)
+        respuesta, media_list, _tools = await run_agent_graph_full(texto, perfil, historial)
     else:
         respuesta = await agent_router.run_agent(texto, perfil, historial)
         media_list = perfil.get("_media_pendiente", [])
@@ -476,18 +485,28 @@ async def _procesar_item_waha(data: dict) -> dict:
     historial = await context.get_history(numero)
 
     if USE_LANGGRAPH:
-        respuesta, media_list = await run_agent_graph_full(texto, perfil, historial)
+        respuesta, media_list, tools_usadas = await run_agent_graph_full(texto, perfil, historial)
     else:
         respuesta = await agent_router.run_agent(texto, perfil, historial)
         media_list = perfil.get("_media_pendiente", [])
+        tools_usadas = []
 
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
 
-    # Persistencia del panel (tabla plana, permanente). Best-effort: nunca rompe el flujo.
+    # Persistencia del panel/estadísticas (tabla enriquecida). Best-effort: nunca rompe el flujo.
     try:
-        await models.save_chat_message(numero, "user", texto)
-        await models.save_chat_message(numero, "assistant", respuesta)
+        sess = _session_id(numero)
+        vend_id  = perfil.get("vendedor_id")
+        vend_nom = perfil.get("nombre")
+        await models.save_chat_message(
+            numero, "user", texto, vendedor_id=vend_id, vendedor_nombre=vend_nom,
+            canal=agente_tipo, session_id=sess, tipo="texto",
+        )
+        await models.save_chat_message(
+            numero, "assistant", respuesta, vendedor_id=vend_id, vendedor_nombre=vend_nom,
+            canal=agente_tipo, session_id=sess, tipo="texto", tools=tools_usadas,
+        )
     except Exception as e:
         logging.error(f"Error guardando chat_messages: {e}")
 

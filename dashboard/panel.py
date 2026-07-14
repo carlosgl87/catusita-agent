@@ -110,6 +110,86 @@ async def api_panel_chat(numero: str, authorization: str = Header("")):
     return {"numero": numero, "vendedor": _vendedor(numero), "mensajes": msgs}
 
 
+# ─── Estadísticas (front Vite, Postgres) ─────────────────────────────────────
+
+@router_panel.get("/api/panel/vendedores")
+async def api_vendedores(authorization: str = Header("")):
+    _auth(authorization)
+    try:
+        return {"vendedores": await models.list_vendedores()}
+    except Exception:
+        return {"vendedores": []}
+
+
+@router_panel.get("/api/panel/stats/resumen")
+async def api_resumen(authorization: str = Header(""),
+                      vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return await models.stats_resumen(vendedor_id, desde, hasta)
+    except Exception:
+        return {"mensajes_totales": 0, "conversaciones": 0}
+
+
+@router_panel.get("/api/panel/stats/evolucion")
+async def api_evolucion(authorization: str = Header(""),
+                        vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_evolucion(vendedor_id, desde, hasta)}
+    except Exception:
+        return {"data": []}
+
+
+@router_panel.get("/api/panel/stats/por-dia")
+async def api_por_dia(authorization: str = Header(""),
+                      vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_por_dia(vendedor_id, desde, hasta)}
+    except Exception:
+        return {"data": []}
+
+
+@router_panel.get("/api/panel/stats/por-hora")
+async def api_por_hora(authorization: str = Header(""),
+                       vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_por_hora(vendedor_id, desde, hasta)}
+    except Exception:
+        return {"data": []}
+
+
+@router_panel.get("/api/panel/stats/tools")
+async def api_tools(authorization: str = Header(""),
+                    vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_tools(vendedor_id, desde, hasta)}
+    except Exception:
+        return {"data": []}
+
+
+@router_panel.get("/api/panel/stats/ranking")
+async def api_ranking(authorization: str = Header(""),
+                      vendedor_id: str = Query(None), desde: str = Query(None), hasta: str = Query(None)):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_ranking(vendedor_id, desde, hasta)}
+    except Exception:
+        return {"data": []}
+
+
+@router_panel.get("/api/panel/stats/sin-uso")
+async def api_sin_uso(authorization: str = Header("")):
+    _auth(authorization)
+    try:
+        return {"data": await models.stats_sin_uso()}
+    except Exception:
+        return {"data": []}
+
+
 # ─── Vista legacy (Redis, token por query) ────────────────────────────────────
 
 @router_panel.get("/panel/api/chats")

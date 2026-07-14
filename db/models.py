@@ -58,14 +58,166 @@ async def log_tool_usage(conversation_id: str, vendedor_id: str,
         )
 
 
-async def save_chat_message(numero: str, rol: str, contenido: str) -> None:
-    """Guarda un mensaje en la tabla plana del panel (persistente)."""
+async def save_chat_message(
+    numero: str,
+    rol: str,
+    contenido: str,
+    vendedor_id: str = None,
+    vendedor_nombre: str = None,
+    canal: str = "vendedor",
+    session_id: str = None,
+    tipo: str = "texto",
+    tools: list = None,
+    latencia_ms: int = None,
+) -> None:
+    """Guarda un mensaje/evento en chat_messages con sus dimensiones para estadísticas."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute(
-            "INSERT INTO chat_messages (numero, rol, contenido) VALUES ($1, $2, $3)",
-            numero, rol, contenido,
+            """INSERT INTO chat_messages
+                 (numero, rol, contenido, vendedor_id, vendedor_nombre, canal,
+                  session_id, tipo, tools, latencia_ms)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+            numero, rol, contenido, vendedor_id, vendedor_nombre, canal,
+            session_id, tipo, tools or [], latencia_ms,
         )
+
+
+# ─── Roster de vendedores ─────────────────────────────────────────────────────
+
+async def upsert_vendedor(vendedor_id: str, codigo: str, nombre: str,
+                          whatsapp: str = None, n_clientes: int = None) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO vendedores (vendedor_id, codigo, nombre, whatsapp, n_clientes, activo)
+               VALUES ($1,$2,$3,$4,$5,true)
+               ON CONFLICT (vendedor_id) DO UPDATE
+                 SET codigo=$2, nombre=$3, whatsapp=$4, n_clientes=COALESCE($5, vendedores.n_clientes),
+                     activo=true""",
+            vendedor_id, codigo, nombre, whatsapp, n_clientes,
+        )
+
+
+async def list_vendedores() -> list:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT vendedor_id, nombre FROM vendedores WHERE activo ORDER BY nombre"
+        )
+    return [dict(r) for r in rows]
+
+
+# ─── Estadísticas (todas con filtro vendedor_id / desde / hasta) ──────────────
+
+# created_at se guarda ~UTC; se convierte a hora de Lima para día/hora/semana.
+_LIMA = "(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')"
+
+
+def _filtros(vendedor_id, desde, hasta):
+    conds, params = [], []
+    if vendedor_id:
+        params.append(vendedor_id); conds.append(f"vendedor_id = ${len(params)}")
+    if desde:
+        params.append(desde); conds.append(f"created_at >= ${len(params)}::timestamptz")
+    if hasta:
+        params.append(hasta); conds.append(f"created_at < ${len(params)}::timestamptz")
+    return conds, params
+
+
+def _where(extra, vendedor_id, desde, hasta):
+    conds, params = _filtros(vendedor_id, desde, hasta)
+    conds = list(extra) + conds
+    return ("WHERE " + " AND ".join(conds)) if conds else "", params
+
+
+async def stats_resumen(vendedor_id=None, desde=None, hasta=None) -> dict:
+    where, params = _where(["rol = 'user'"], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"""SELECT COUNT(*) AS mensajes_totales,
+                       COUNT(DISTINCT numero || '|' || ({_LIMA}::date)::text) AS conversaciones
+                  FROM chat_messages {where}""",
+            *params,
+        )
+    return {"mensajes_totales": row["mensajes_totales"], "conversaciones": row["conversaciones"]}
+
+
+async def stats_evolucion(vendedor_id=None, desde=None, hasta=None) -> list:
+    where, params = _where(["rol = 'user'"], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT date_trunc('week', {_LIMA})::date AS semana, COUNT(*) AS mensajes
+                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+            *params,
+        )
+    return [{"semana": r["semana"].isoformat(), "mensajes": r["mensajes"]} for r in rows]
+
+
+async def stats_por_dia(vendedor_id=None, desde=None, hasta=None) -> list:
+    where, params = _where(["rol = 'user'"], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT EXTRACT(ISODOW FROM {_LIMA})::int AS dia, COUNT(*) AS n
+                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+            *params,
+        )
+    return [{"dia": r["dia"], "n": r["n"]} for r in rows]
+
+
+async def stats_por_hora(vendedor_id=None, desde=None, hasta=None) -> list:
+    where, params = _where(["rol = 'user'"], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT EXTRACT(HOUR FROM {_LIMA})::int AS hora, COUNT(*) AS n
+                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+            *params,
+        )
+    return [{"hora": r["hora"], "n": r["n"]} for r in rows]
+
+
+async def stats_tools(vendedor_id=None, desde=None, hasta=None) -> list:
+    where, params = _where([], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT t AS tool, COUNT(*) AS n
+                  FROM chat_messages, unnest(tools) t {where}
+                 GROUP BY 1 ORDER BY n DESC""",
+            *params,
+        )
+    total = sum(r["n"] for r in rows) or 1
+    return [{"tool": r["tool"], "n": r["n"], "pct": round(100 * r["n"] / total)} for r in rows]
+
+
+async def stats_ranking(vendedor_id=None, desde=None, hasta=None) -> list:
+    where, params = _where(["rol = 'user'", "vendedor_id IS NOT NULL"], vendedor_id, desde, hasta)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT vendedor_id, MAX(vendedor_nombre) AS nombre, COUNT(*) AS mensajes
+                  FROM chat_messages {where}
+                 GROUP BY vendedor_id ORDER BY mensajes DESC""",
+            *params,
+        )
+    return [{"vendedor_id": r["vendedor_id"], "nombre": r["nombre"], "mensajes": r["mensajes"]} for r in rows]
+
+
+async def stats_sin_uso() -> list:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT v.vendedor_id, v.nombre FROM vendedores v
+                WHERE v.activo AND NOT EXISTS (
+                    SELECT 1 FROM chat_messages m
+                     WHERE m.vendedor_id = v.vendedor_id AND m.rol = 'user')
+                ORDER BY v.nombre"""
+        )
+    return [{"vendedor_id": r["vendedor_id"], "nombre": r["nombre"]} for r in rows]
 
 
 async def list_chats() -> list:

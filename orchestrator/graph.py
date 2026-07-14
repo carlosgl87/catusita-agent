@@ -109,19 +109,31 @@ async def run_agent_graph(mensaje: str, perfil: dict, historial: list) -> str:
     return _extraer_respuesta(final)
 
 
+def _extraer_tools(final: dict) -> list:
+    """Nombres de las tools que el modelo invocó en este turno (para estadísticas)."""
+    tools = []
+    for m in final.get("messages", []):
+        for tc in (getattr(m, "tool_calls", None) or []):
+            name = tc.get("name")
+            if name:
+                tools.append(name)
+    return tools
+
+
 async def run_agent_graph_full(
     mensaje: str, perfil: dict, historial: list
-) -> tuple[str, list]:
-    """Como run_agent_graph pero también devuelve la lista media_pendiente.
+) -> tuple[str, list, list]:
+    """Como run_agent_graph pero también devuelve media_pendiente y las tools usadas.
 
-    Usado por el webhook para enviar imágenes (ej. tarjeta SUNARP) por WhatsApp.
-    Returns: (respuesta_texto, media_pendiente)
+    Usado por el webhook para enviar imágenes y para registrar estadísticas.
+    Returns: (respuesta_texto, media_pendiente, tools_usadas)
     """
     try:
         final = await _invoke(mensaje, perfil, historial)
     except GraphRecursionError:
         logging.warning(f"LangGraph: recursion_limit ({RECURSION_LIMIT}) alcanzado.")
-        return _FALLBACK_LOOP, []
+        return _FALLBACK_LOOP, [], []
     respuesta = _extraer_respuesta(final)
     media = final.get("media_pendiente") or []
-    return respuesta, media
+    tools = _extraer_tools(final)
+    return respuesta, media, tools
