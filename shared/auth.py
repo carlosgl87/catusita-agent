@@ -9,6 +9,11 @@ USE_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 # devuelve los 3579 clientes de toda la empresa).
 SELLER_ID_DEMO = os.getenv("SELLER_ID_DEMO", "2")
 
+# Si es true, cualquier número no registrado se autentica como el vendedor demo
+# (modo prueba abierto). Por defecto FALSE: a un número no registrado NO se le da
+# acceso ni datos — se le pide que se registre. Ver incidencia #11.
+ALLOW_SANDBOX_AUTH = os.getenv("ALLOW_SANDBOX_AUTH", "false").lower() == "true"
+
 # Vendedores reales de prueba: cada número de WhatsApp mapeado a su SellerId real
 # de Catusita (ver docs/vendedores_directorio.md). El vendedor_id es el SellerId
 # que se pasa a /vendedor/{id}/clientes para traer SU cartera.
@@ -139,8 +144,21 @@ def _asesor_sandbox(numero_whatsapp: str) -> dict:
 async def get_user_profile(numero_whatsapp: str, agente_tipo: str) -> dict:
     if USE_MOCK:
         if agente_tipo == "vendedor":
-            # Número conocido → su perfil; cualquier otro → asesor sandbox (V001).
-            return _MOCK_ASESORES.get(numero_whatsapp) or _asesor_sandbox(numero_whatsapp)
+            # Número conocido → su perfil.
+            perfil = _MOCK_ASESORES.get(numero_whatsapp)
+            if perfil:
+                return perfil
+            # No registrado: solo en modo prueba abierto se le da la cartera demo.
+            if ALLOW_SANDBOX_AUTH:
+                return _asesor_sandbox(numero_whatsapp)
+            # Por defecto: no autenticar ni dar datos a un número desconocido.
+            return {
+                "autenticado": False,
+                "tipo": "asesor",
+                "numero_whatsapp": numero_whatsapp,
+                "mensaje": ("Tu número no está registrado en el sistema. "
+                            "Por favor contacta a tu supervisor para que te den de alta."),
+            }
         else:
             # Para clientes en mock, aceptar cualquier número con estado no-autenticado
             return {
