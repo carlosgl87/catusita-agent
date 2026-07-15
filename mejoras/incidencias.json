@@ -1,0 +1,115 @@
+{
+  "titulo": "Catusita · Registro de incidencias y mejoras del agente",
+  "actualizado": "2026-07-14",
+  "incidencias": [
+    {
+      "id": 1,
+      "area": "Buscador de catálogo",
+      "incidencia": "Cuando el vendedor escribe una frase natural (ej. 'amortiguadores para Toyota', 'filtro Toyota', 'radiador Hilux') el buscador no devuelve nada, aunque el producto SÍ existe. Buscando solo la palabra clave sí aparece: 'amortiguador' devuelve 656, 'radiador' devuelve 41.",
+      "mejora": "Hacer el buscador flexible: buscar por palabras clave sueltas (no la frase entera), exigiendo que todas aparezcan, y reintentar con el término más fuerte antes de rendirse.",
+      "resumen": "El agente va a encontrar los productos aunque el vendedor pregunte con sus propias palabras, en vez de responder 'no hay' cuando el producto sí existe.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 2,
+      "area": "Buscador de catálogo",
+      "incidencia": "El buscador es sensible al formato del código: 'wk723' devuelve 0, pero 'WK-723' devuelve 4. El guion y los plurales rompen la búsqueda.",
+      "mejora": "Normalizar el texto al buscar: ignorar guiones, espacios y mayúsculas, y contemplar singular/plural.",
+      "resumen": "El vendedor podrá escribir el código como le salga (con o sin guion) y el agente igual lo encuentra, sin tener que adivinar el formato exacto.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 3,
+      "area": "Comportamiento del agente",
+      "incidencia": "Cuando una búsqueda falla, el agente afirma que el producto 'no está en el catálogo' o que 'consulte con su jefe de línea', aunque el producto sí exista. Esto genera desconfianza (un vendedor escribió 'siento que no me estás ayudando').",
+      "mejora": "Instruir al agente a NO afirmar que algo no existe por un solo intento fallido: primero simplificar la búsqueda y reintentar con la palabra clave.",
+      "resumen": "El agente deja de decir 'no existe' por error. Solo lo dirá cuando de verdad no esté, evitando que el vendedor pierda ventas y confianza.",
+      "estado": "Rechazado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 4,
+      "area": "Identidad del vendedor",
+      "incidencia": "El agente saludaba a todos como 'Luis García' y mostraba una cartera de prueba, porque WhatsApp entrega un identificador interno (LID) en vez del número de teléfono.",
+      "mejora": "Traducir el identificador interno al número real para reconocer a cada vendedor.",
+      "resumen": "Ahora cada vendedor es reconocido por su nombre real y ve su propia cartera de clientes.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": 5,
+      "area": "Cartera de clientes",
+      "incidencia": "El agente mostraba los ~3.500 clientes de toda la empresa (bucket 'Gerencia') en vez de la cartera del vendedor.",
+      "mejora": "Asignar a cada vendedor su código real de Catusita para traer solo sus clientes.",
+      "resumen": "Cada vendedor ve únicamente SUS clientes, no los de toda la empresa.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-10"
+    },
+    {
+      "id": 6,
+      "area": "Redacción del agente",
+      "incidencia": "El agente ofrecía sus funciones diciendo 'puedo consultarte...', que suena a que él le pregunta al vendedor.",
+      "mejora": "Cambiar la redacción a 'puedes consultarme por...'.",
+      "resumen": "El agente se explica mejor: queda claro qué cosas puede pedirle el vendedor.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": 7,
+      "area": "Consulta de placa",
+      "incidencia": "El resultado de la placa (datos + foto) no quedaba guardado en el historial del panel.",
+      "mejora": "Guardar el resultado de la placa en el mismo hilo del vendedor.",
+      "resumen": "La consulta de placa completa queda registrada y visible en el panel de conversaciones.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": 8,
+      "area": "Panel · Estadísticas",
+      "incidencia": "El panel mostraba las horas en horario internacional (UTC), 5 horas adelantado respecto a Perú.",
+      "mejora": "Mostrar todas las horas en hora de Perú.",
+      "resumen": "El panel muestra las horas correctas de Perú.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 9,
+      "area": "Panel · Estadísticas",
+      "incidencia": "Los gráficos se estiraban hacia abajo sin parar al entrar a la pestaña de estadísticas.",
+      "mejora": "Fijar el alto de los gráficos.",
+      "resumen": "Los gráficos tienen un tamaño fijo y estable.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 10,
+      "area": "Panel · Estadísticas",
+      "incidencia": "El filtro por fecha no devolvía resultados (elegir un día no mostraba nada).",
+      "mejora": "Corregir el filtro para que use fechas de Perú e incluya el día elegido.",
+      "resumen": "El filtro por fecha ya funciona correctamente.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 11,
+      "area": "Identidad / Cartera",
+      "incidencia": "Un vendedor NO registrado (número 51912263095) fue tratado como el vendedor de prueba: preguntó por su cliente 'Contratistas Generales Cáceres' y el agente buscó en una cartera de 77 clientes que no es la suya y le dijo que el cliente no existe.",
+      "mejora": "Detectar los números no registrados y responder 'tu número no está registrado, contacta a tu supervisor', en vez de asignarles una cartera ajena.",
+      "resumen": "A un vendedor que no está dado de alta el agente ya no le mostrará clientes de otra persona ni le dirá que su cliente no existe: le avisará que primero debe registrarse.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
+    },
+    {
+      "id": 12,
+      "area": "Catálogo / Productos",
+      "incidencia": "Un vendedor (51948985984) pidió la foto de un producto ('tienes foto de ese item?') y el agente respondió que no maneja imágenes de productos.",
+      "mejora": "A corto plazo, ofrecer una salida clara (dónde ver la imagen). A futuro, conectar las imágenes o fichas técnicas del catálogo cuando estén disponibles.",
+      "resumen": "El vendedor podrá ver la foto o ficha técnica del repuesto; hoy el agente no las tiene y solo puede avisar que no están disponibles.",
+      "estado": "Rechazado",
+      "motivo": "No es un bug: las imágenes/fichas técnicas no las expone la API de Catusita. Depende de que el proveedor provea ese dato (como pedidos o crédito), no de nuestro código. No hay nada que implementar de nuestro lado por ahora.",
+      "fecha": "2026-07-14"
+    }
+  ]
+}
