@@ -149,6 +149,20 @@ _MOCK_ASESORES = {
         "vendedor_id": "66",   # 134 clientes
         "autenticado": True,
     },
+    # 'Alonso Salgado' no existe en el directorio de Catusita. Se le asigna esta
+    # cartera porque el cliente que consultó (Contratistas Generales Cáceres) es
+    # justamente de ella — así su consulta real funciona. Reasignar cuando se
+    # confirme su código de vendedor verdadero.
+    "51912263095": {
+        "user_id": "asesor-52",
+        "tipo": "asesor",
+        "nombre": "Lupaca Castañeda Gisela Yanet",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0055",
+        "vendedor_id": "52",   # 72 clientes
+        "autenticado": True,
+    },
 
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
