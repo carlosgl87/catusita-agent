@@ -88,6 +88,68 @@ _MOCK_ASESORES = {
         "vendedor_id": "29",   # 163 clientes
         "autenticado": True,
     },
+    # ── Lote 2: pares número↔vendedor confirmados con el directorio real ──────
+    "51960660141": {
+        "user_id": "asesor-56",
+        "tipo": "asesor",
+        "nombre": "Aparco Aparco Stefany Katherin",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0068",
+        "vendedor_id": "56",   # 26 clientes
+        "autenticado": True,
+    },
+    "51993819074": {
+        "user_id": "asesor-60",
+        "tipo": "asesor",
+        "nombre": "Pinedo Peña Luz",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0012",
+        "vendedor_id": "60",   # 67 clientes
+        "autenticado": True,
+    },
+    "51932724126": {
+        "user_id": "asesor-78",
+        "tipo": "asesor",
+        "nombre": "Lupuche Morante Patricia Veronica",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0021",
+        "vendedor_id": "78",   # 216 clientes
+        "autenticado": True,
+    },
+    "51922553756": {
+        "user_id": "asesor-16",
+        "tipo": "asesor",
+        "nombre": "Chavez Ariste Fernando",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0032",
+        "vendedor_id": "16",   # 144 clientes
+        "autenticado": True,
+    },
+    "51986159395": {
+        "user_id": "asesor-76",
+        "tipo": "asesor",
+        "nombre": "Vega Ganoza Jose Carlos",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0030",
+        "vendedor_id": "76",   # 102 clientes
+        "autenticado": True,
+    },
+    "51925240250": {
+        "user_id": "asesor-66",
+        "tipo": "asesor",
+        "nombre": "Cardoza Lara Tamara Beatriz",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0022",
+        "vendedor_id": "66",   # 134 clientes
+        "autenticado": True,
+    },
+
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
     # vez del teléfono. Ese LID es estable por cuenta, así que se mapea igual que
