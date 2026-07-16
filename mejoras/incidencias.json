@@ -110,6 +110,15 @@
       "estado": "Rechazado",
       "motivo": "No es un bug: las imágenes/fichas técnicas no las expone la API de Catusita. Depende de que el proveedor provea ese dato (como pedidos o crédito), no de nuestro código. No hay nada que implementar de nuestro lado por ahora.",
       "fecha": "2026-07-14"
+    },
+    {
+      "id": 13,
+      "area": "Panel · Conversaciones",
+      "incidencia": "En el visor de conversaciones, el auto-refresco (cada 5 segundos) tiraba el scroll hasta el fondo, así que no se podía leer hacia arriba: al rato te sacaba del lugar donde estabas leyendo.",
+      "mejora": "Redibujar el chat solo cuando llegan mensajes nuevos, y bajar al fondo únicamente si el usuario ya estaba abajo o recién abrió esa conversación.",
+      "resumen": "Ahora se puede leer una conversación tranquilo: el panel ya no te tira al final cada 5 segundos y respeta dónde estabas leyendo.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-14"
     }
   ]
 }
