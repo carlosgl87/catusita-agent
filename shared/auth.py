@@ -28,6 +28,16 @@ _MOCK_ASESORES = {
         "vendedor_id": "28",   # 294 clientes
         "autenticado": True,
     },
+    "51956646145": {
+        "user_id": "asesor-28",
+        "tipo": "asesor",
+        "nombre": "Saavedra Cicirello Jose Domingo",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0051",
+        "vendedor_id": "28",   # 294 clientes (2do número de Saavedra)
+        "autenticado": True,
+    },
     "51948985984": {
         "user_id": "asesor-50",
         "tipo": "asesor",
