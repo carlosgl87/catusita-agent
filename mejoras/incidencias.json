@@ -119,6 +119,15 @@
       "resumen": "Ahora se puede leer una conversación tranquilo: el panel ya no te tira al final cada 5 segundos y respeta dónde estabas leyendo.",
       "estado": "Aplicado",
       "fecha": "2026-07-14"
+    },
+    {
+      "id": 14,
+      "area": "Pedidos",
+      "incidencia": "El agente no podía consultar pedidos de un cliente: cuando se lo pedían, avisaba que 'todavía no está conectado'. Era una capacidad apagada porque la API de Catusita no la exponía.",
+      "mejora": "Catusita implementó el endpoint de pedidos. Se conectó al agente: consulta los pedidos de un cliente por su RUC, con estado del pedido, número de factura SUNAT, estado de despacho (entregado/rechazado) y notas de crédito.",
+      "resumen": "El vendedor ya puede preguntar por los pedidos de un cliente y ver en qué estado están, su factura y si se entregaron. Antes esto no estaba disponible.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-20"
     }
   ]
 }
