@@ -1,9 +1,9 @@
 # Qué falta para llegar al 100% (vs. lo que hacía con el mock)
 
-> Fecha: 2026-07-10
+> Fecha: 2026-07-10 · Actualizado: 2026-07-20 (Catusita liberó **pedidos** → ya cubierto).
 > Contexto: el agente migró del Mock SAP (16 endpoints, data inventada, cubría el 100% del
-> spec) a la API real de Catusita, que hoy solo alimenta **5 de esas capacidades**. Este
-> documento lista TODO lo que quedó afuera y qué se necesita para recuperarlo.
+> spec) a la API real de Catusita, que hoy alimenta **6 de esas capacidades** (las 5 iniciales
+> + pedidos). Este documento lista TODO lo que quedó afuera y qué se necesita para recuperarlo.
 > Relacionado: [`plan_migracion_api_real.md`](plan_migracion_api_real.md), [`informe_actual.md`](informe_actual.md).
 
 ---
@@ -12,34 +12,39 @@
 
 | Estado | Capacidades |
 |---|---|
-| ✅ **Funciona con data real** (5) | Stock, precio de lista, catálogo, cartera de clientes, perfil de cliente |
+| ✅ **Funciona con data real** (6) | Stock, precio de lista, catálogo, cartera de clientes, perfil de cliente, **pedidos** (estado, factura SUNAT, despacho, notas de crédito) |
 | 🟡 **Funciona pero incompleto** | Cartera y perfil (faltan campos), catálogo (sin precio/stock por ítem), stock (sin mínimos/almacén) |
-| 🔴 **Apagado — sin fuente real** (7) | Pedidos, crédito, cobranzas, historial, documentos, compatibilidad por placa/VIN, precio neto/descuentos |
+| 🔴 **Apagado — sin fuente real** (6) | Crédito, cobranzas, historial, documentos, compatibilidad por placa/VIN, precio neto/descuentos |
 | ⚙️ **Pendiente de infra/negocio** | Mapeo número→SellerId, auth de producción, placas SUNARP, posible JWT |
 
 **Para el 100% se necesita, sobre todo, que Catusita exponga endpoints que hoy no existen.**
-Es una dependencia externa, no de desarrollo del agente.
+Es una dependencia externa, no de desarrollo del agente. **Precedente:** pedidos estaba en
+esta lista y en cuanto Catusita lo expuso (2026-07-20) se reactivó en el agente en el día.
 
 ---
 
 ## 1. Capacidades apagadas — requieren NUEVOS endpoints de Catusita
 
-Estas 7 tools se apagaron porque la API real de Catusita **no tiene de dónde sacar el dato**.
+Estas tools se apagaron porque la API real de Catusita **no tiene de dónde sacar el dato**.
 Para recuperarlas, Catusita debe exponer el endpoint correspondiente; recién ahí se reconecta
 la tool (el código del agente ya existe, solo hay que reactivarlo y normalizar el shape).
 
 | # | Capacidad | Qué hacía | Qué se necesita de Catusita |
 |---|---|---|---|
-| 1 | **Estado de pedidos** | Buscar pedido por N°, ver pedidos de un cliente, estado/seguimiento de despacho | Endpoint de pedidos/ventas (por N° de pedido y por RUC) con estado, fechas, guía |
-| 2 | **Crédito** | Línea de crédito, deuda actual, disponible de un cliente | Endpoint de cuentas por cobrar / crédito por cliente |
-| 3 | **Cobranzas** | Letras, facturas vencidas, vencimientos, reporte semanal por cartera | Endpoint de cobranzas / letras por cliente y por vendedor |
-| 4 | **Historial de compras** | Compras de un cliente en los últimos N meses | Endpoint de historial de ventas por cliente |
-| 5 | **Documentos** | Facturas, guías de remisión, notas de crédito (PDF/XML) | Endpoint de documentos electrónicos (con URLs de descarga) |
-| 6 | **Compatibilidad por placa/VIN** | Repuestos del catálogo que calzan con un vehículo | Datos de aplicación/compatibilidad vehículo→repuesto (o cruce con el `foreignName` del catálogo) |
-| 7 | **Precio neto / descuentos** | Precio neto, escala por volumen, precio por zona | La API de precios solo da **precio de lista** (`finalPrice`); falta neto, descuentos y escalas |
+| ~~0~~ | ✅ ~~**Estado de pedidos**~~ | Ver pedidos de un cliente, estado, factura SUNAT, despacho | **RESUELTO 2026-07-20:** Catusita expuso `GET /api/sales/orders/documents`. Reactivado (búsqueda por RUC, no por N° de pedido). |
+| 1 | **Crédito** | Línea de crédito, deuda actual, disponible de un cliente | Endpoint de cuentas por cobrar / crédito por cliente |
+| 2 | **Cobranzas** | Letras, facturas vencidas, vencimientos, reporte semanal por cartera | Endpoint de cobranzas / letras por cliente y por vendedor |
+| 3 | **Historial de compras** | Compras de un cliente en los últimos N meses | Endpoint de historial de ventas por cliente |
+| 4 | **Documentos** | Facturas, guías de remisión, notas de crédito (PDF/XML) | Endpoint de documentos electrónicos (con URLs de descarga) |
+| 5 | **Compatibilidad por placa/VIN** | Repuestos del catálogo que calzan con un vehículo | Datos de aplicación/compatibilidad vehículo→repuesto (o cruce con el `foreignName` del catálogo) |
+| 6 | **Precio neto / descuentos** | Precio neto, escala por volumen, precio por zona | La API de precios solo da **precio de lista** (`finalPrice`); falta neto, descuentos y escalas |
 
-> Nota sobre el #7: por **política** el agente nunca debe revelar precio neto al usuario, así
+> Nota sobre el #6: por **política** el agente nunca debe revelar precio neto al usuario, así
 > que esta brecha es más de completitud del dato que de funcionalidad de cara al vendedor.
+>
+> Nota sobre pedidos (resuelto): la API busca por cliente (RUC/código), no por N° de pedido,
+> así que "buscar pedido por su ID" sigue sin aplicar. El resto (estado, factura, despacho,
+> notas de crédito) ya está cubierto.
 
 ---
 
@@ -88,7 +93,7 @@ La API real da `stock` (cantidad total) y unidad. **Faltan**:
 ## 4. Qué se necesita de cada parte para el 100%
 
 **De Catusita (lo crítico y bloqueante):**
-1. Endpoints de: pedidos, crédito, cobranzas, historial, documentos.
+1. Endpoints de: crédito, cobranzas, historial, documentos. (~~pedidos~~ ✅ ya entregado)
 2. Campos faltantes en clientes: `tipo`, `estado`, crédito/saldo.
 3. Precio y stock por producto en el catálogo; desglose de stock por almacén.
 4. Datos de compatibilidad vehículo→repuesto (o confirmar que se puede derivar del catálogo).
@@ -109,9 +114,10 @@ La API real da `stock` (cantidad total) y unidad. **Faltan**:
 
 ## 5. Priorización sugerida (mayor impacto comercial primero)
 
+- ✅ **Pedidos** — HECHO (2026-07-20). Era top de lo que piden los vendedores; ya cubierto.
 1. 🥇 **Mapeo número→SellerId** — sin esto la cartera no es de cada vendedor de verdad (ya desbloqueado técnicamente, falta el dato del negocio).
 2. 🥈 **Campos de cliente (tipo/estado/crédito)** — habilita filtros de cartera y contexto comercial.
-3. 🥉 **Pedidos + cobranzas** — lo que más piden los vendedores en el día a día.
+3. 🥉 **Cobranzas** — lo que más piden los vendedores después de pedidos.
 4. **Documentos (facturas/guías)** — alto valor, depende de facturación electrónica.
 5. **Historial de compras** — útil para seguimiento, menor urgencia.
 6. **Compatibilidad por vehículo** — nice-to-have; hoy se suple buscando por nombre/marca.
