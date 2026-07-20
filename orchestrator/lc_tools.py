@@ -158,7 +158,7 @@ async def consultar_pedidos(
     tool_call_id: Annotated[str, InjectedToolCallId],
     estado: Optional[str] = None,
 ) -> Command:
-    """Consulta TODOS los pedidos de un cliente por su RUC. Usa esta tool cuando tengas el RUC del cliente y quieras ver su historial de pedidos. Si solo tienes el número de pedido (PED-XXXXXX) sin saber el cliente, usa buscar_pedido_por_id en su lugar."""
+    """Consulta los pedidos de un cliente por su RUC. Devuelve estado del pedido, número de factura SUNAT, estado de despacho (entregado/rechazado) y notas de crédito. Úsala cuando el asesor pregunte por los pedidos, facturas o despachos de un cliente de su cartera. La búsqueda es por cliente (RUC), no por número de pedido."""
     perfil = state["perfil"]
     args = {"cliente_ruc": cliente_ruc}
     denegado = await access.verificar_acceso_cartera("consultar_pedidos", args, perfil)
@@ -412,6 +412,7 @@ async def registrar_reclamo(
 TOOLS_VENDEDOR_LC = [
     consultar_stock,
     consultar_precio,
+    consultar_pedidos,
     consultar_cartera,
     consultar_perfil_cliente,
     buscar_catalogo,

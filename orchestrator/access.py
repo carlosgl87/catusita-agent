@@ -16,6 +16,7 @@ from agents import cartera
 # pedidos/documentos están apagadas; solo queda consultar_perfil_cliente.
 RUC_SCOPED_TOOLS = {
     "consultar_perfil_cliente": "ruc",
+    "consultar_pedidos": "cliente_ruc",
 }
 
 
