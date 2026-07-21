@@ -128,6 +128,15 @@
       "resumen": "El vendedor ya puede preguntar por los pedidos de un cliente y ver en qué estado están, su factura y si se entregaron. Antes esto no estaba disponible.",
       "estado": "Aplicado",
       "fecha": "2026-07-20"
+    },
+    {
+      "id": 15,
+      "area": "Despacho / Entrega",
+      "incidencia": "El agente no podía decir si un pedido ya se había entregado ni dar la guía de remisión y las fechas de entrega.",
+      "mejora": "Catusita expuso el endpoint de seguimiento de despacho. Se conectó al agente: por N° de pedido o de factura devuelve si se entregó, la guía de remisión y las fechas de despacho y entrega. La API no permite buscarlo por RUC, así que el agente primero saca los pedidos del cliente y luego consulta el despacho de cada uno.",
+      "resumen": "El vendedor ya puede preguntar '¿ya llegó el pedido?' y el agente le dice si se entregó, con qué guía y en qué fecha.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-20"
     }
   ]
 }
