@@ -169,6 +169,26 @@ async def consultar_pedidos(
 
 
 @tool
+async def consultar_despacho(
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    pedido_id: Optional[str] = None,
+    factura: Optional[str] = None,
+) -> Command:
+    """Consulta el estado de ENTREGA/DESPACHO de un pedido: si ya se entregó, la guía de remisión y las fechas de despacho y entrega. Úsala cuando pregunten '¿ya llegó el pedido?', '¿se entregó?', '¿en qué va el despacho?'. Requiere el N° de pedido o el N° de factura (NO funciona por RUC): si el asesor pregunta por el despacho de un cliente, primero usa consultar_pedidos para obtener sus N° de pedido y luego consulta el despacho de cada uno. Trae un campo 'mensaje' ya redactado que puedes reenviar tal cual."""
+    perfil = state["perfil"]
+    if not pedido_id and not factura:
+        return _to_command(
+            {"error": "FALTA_DATO", "mensaje": "Necesito el número de pedido o el número de factura para consultar el despacho."},
+            tool_call_id,
+        )
+    t0 = time.time()
+    resultado = await orders.consultar_despacho(pedido_id=pedido_id, factura=factura)
+    await _log(perfil, "consultar_despacho", t0)
+    return _to_command(resultado, tool_call_id)
+
+
+@tool
 async def consultar_credito(
     cliente_ruc: str,
     state: Annotated[dict, InjectedState],
@@ -413,6 +433,7 @@ TOOLS_VENDEDOR_LC = [
     consultar_stock,
     consultar_precio,
     consultar_pedidos,
+    consultar_despacho,
     consultar_cartera,
     consultar_perfil_cliente,
     buscar_catalogo,

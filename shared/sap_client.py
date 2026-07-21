@@ -45,6 +45,9 @@ class SAPClient:
         params = {"tipo": tipo} if tipo else None
         return await self._get(f"/precios/{sku_code}", params=params)
 
+    async def get_pedido_por_id(self, pedido_id: str) -> dict:
+        return await self._get(f"/pedido/{pedido_id}")
+
     async def get_pedidos(self, cliente_ruc: str, estado: str = None, limite: int = None) -> dict:
         params = {}
         if estado:
@@ -52,6 +55,14 @@ class SAPClient:
         if limite:
             params["limite"] = limite
         return await self._get(f"/pedidos/{cliente_ruc}", params=params or None)
+
+    async def get_despacho(self, pedido_id: str = None, factura: str = None) -> dict:
+        params = {}
+        if pedido_id:
+            params["pedido_id"] = pedido_id
+        if factura:
+            params["factura"] = factura
+        return await self._get("/despacho", params=params or None)
 
     async def get_credito(self, cliente_ruc: str) -> dict:
         return await self._get(f"/credito/{cliente_ruc}")
