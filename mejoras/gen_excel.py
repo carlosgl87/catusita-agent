@@ -6,12 +6,27 @@ Requiere: openpyxl
 """
 import json
 import os
+from datetime import datetime, timezone, timedelta
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 DATA = json.load(open(os.path.join(AQUI, "incidencias.json"), encoding="utf-8"))
+
+
+def _lima(iso_utc: str) -> str:
+    """Convierte un timestamp ISO (UTC) a texto legible en hora de Perú."""
+    if not iso_utc:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(iso_utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=-5)))
+        return dt.strftime("%d/%m/%Y %H:%M") + " (hora Perú)"
+    except Exception:
+        return iso_utc
 
 ESTADO_FILL = {
     "Pendiente": "FFF2CC",   # ámbar
@@ -38,7 +53,8 @@ ws.merge_cells("A1:G1")
 ws["A1"] = DATA["titulo"]
 ws["A1"].font = Font(bold=True, size=14, color="16233A")
 ws.merge_cells("A2:G2")
-ws["A2"] = f"Actualizado: {DATA['actualizado']}  ·  Cada mejora requiere aprobación antes de aplicarse."
+ws["A2"] = (f"Actualizado: {DATA['actualizado']}  ·  Última revisión de chats: "
+            f"{_lima(DATA.get('ultima_revision',''))}  ·  Cada mejora requiere aprobación antes de aplicarse.")
 ws["A2"].font = Font(italic=True, size=10, color="64748B")
 
 # Encabezado

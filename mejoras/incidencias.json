@@ -1,6 +1,8 @@
 {
   "titulo": "Catusita · Registro de incidencias y mejoras del agente",
-  "actualizado": "2026-07-14",
+  "actualizado": "2026-07-20",
+  "ultima_revision": "2026-07-17T21:54:40+00:00",
+  "_nota_ultima_revision": "Marca de agua (UTC): el skill solo analiza chats con mensajes POSTERIORES a esta fecha. Se actualiza al final de cada revisión con el mensaje más reciente visto.",
   "incidencias": [
     {
       "id": 1,
@@ -137,6 +139,24 @@
       "resumen": "El vendedor ya puede preguntar '¿ya llegó el pedido?' y el agente le dice si se entregó, con qué guía y en qué fecha.",
       "estado": "Aplicado",
       "fecha": "2026-07-20"
+    },
+    {
+      "id": 16,
+      "area": "Buscador de catálogo",
+      "incidencia": "Los vendedores buscan con palabras comunes (amortiguador POSTERIOR, TRASERO, DELANTERO; filtro de HABITÁCULO) pero el catálogo usa abreviaturas (Post, Del) u otros términos, así que da 0 resultados aunque el producto exista. Ejemplo real: 'amortiguador posterior Suzuki Swift' devuelve 0, pero 'amortiguador Post Swift' devuelve 3. Dos vendedores insistieron varias veces y uno nunca encontró su amortiguador.",
+      "mejora": "Agregar un diccionario de sinónimos/abreviaturas al buscador: posterior/trasero → Post, delantero/delantera → Del, habitáculo → cabina/aire, etc. Así la palabra natural del vendedor matchea la abreviatura del catálogo.",
+      "resumen": "El vendedor podrá buscar como habla ('amortiguador trasero', 'filtro de habitáculo') y el agente igual encontrará el producto, aunque el catálogo lo tenga abreviado.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-21"
+    },
+    {
+      "id": 17,
+      "area": "Stock",
+      "incidencia": "Cuando un SKU existe y tiene precio pero no tiene fila de stock (ej. PP530, que cuesta $55.50), el agente responde 'el sistema no reconoce el código' y entra en un loop pidiendo confirmar el SKU, en vez de decir 'sin stock disponible'. Una vendedora insistió 3 veces con PP530 sin obtener respuesta útil.",
+      "mejora": "En la consulta de stock, distinguir 'SKU no existe' de 'SKU válido sin stock'. Si el producto está en el catálogo pero sin fila de stock, responder 'sin stock disponible' (y ofrecer el precio), en vez de tratarlo como código no reconocido y hacer loop.",
+      "resumen": "Cuando un producto existe pero no tiene stock, el agente lo dirá claro ('sin stock disponible') en vez de dar vueltas pidiendo confirmar el código.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-21"
     }
   ]
 }
