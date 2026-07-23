@@ -23,7 +23,7 @@ from langgraph.types import Command
 
 from agents import (
     stock, prices, orders, credit, documents,
-    catalog_rag, vehicle, collections, claims, cartera,
+    catalog_rag, vehicle, collections, claims, cartera, imagenes,
 )
 from orchestrator import access
 from shared import llm
@@ -308,6 +308,40 @@ async def buscar_catalogo(
 
 
 @tool
+async def enviar_imagen_producto(
+    sku_code: str,
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Envía por WhatsApp la(s) FOTO(s) de un producto. Úsala SOLO cuando el vendedor pida la imagen, foto o ficha de un producto puntual (por su código SKU). La foto se manda automáticamente al chat como imagen; en tu respuesta de texto solo confírmale que se la enviaste."""
+    perfil = state["perfil"]
+    t0 = time.time()
+    resultado = await imagenes.obtener_imagenes(sku_code)
+    if not resultado or resultado.get("error"):
+        await _log(perfil, "enviar_imagen_producto", t0)
+        return _to_command(
+            {"error": "SIN_IMAGEN", "mensaje": f"No encontré una foto del producto {sku_code} en el sistema."},
+            tool_call_id,
+        )
+    imgs = resultado.get("imagenes", [])
+    nombre = resultado.get("nombre", "")
+    media = []
+    for i, im in enumerate(imgs):
+        media.append({
+            "imagen_base64": im["base64"],
+            "caption": f"{nombre} — {sku_code}" if i == 0 else "",
+            "filename": im.get("filename", f"{sku_code}.png"),
+        })
+    await _log(perfil, "enviar_imagen_producto", t0)
+    return _to_command(
+        {"sku": sku_code, "nombre": nombre, "enviadas": len(media),
+         "mensaje": f"Te envié {len(media)} foto(s) del producto {sku_code} al chat."},
+        tool_call_id,
+        {"media_pendiente": media},
+    )
+
+
+@tool
 async def identificar_vehiculo(
     placa_o_vin: str,
     state: Annotated[dict, InjectedState],
@@ -437,6 +471,7 @@ TOOLS_VENDEDOR_LC = [
     consultar_cartera,
     consultar_perfil_cliente,
     buscar_catalogo,
+    enviar_imagen_producto,
     consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]
@@ -445,6 +480,7 @@ TOOLS_CLIENTE_LC = [
     consultar_stock,
     consultar_precio,
     buscar_catalogo,
+    enviar_imagen_producto,
     consultar_placa_sunarp,
     registrar_reclamo,
 ]

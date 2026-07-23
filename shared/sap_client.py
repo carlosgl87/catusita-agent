@@ -64,6 +64,10 @@ class SAPClient:
             params["factura"] = factura
         return await self._get("/despacho", params=params or None)
 
+    async def get_imagen(self, sku: str) -> dict:
+        """Foto(s) de un producto ya descargadas (base64). Timeout largo: descarga imágenes."""
+        return await self._get(f"/imagen/{sku}", timeout=30.0)
+
     async def get_credito(self, cliente_ruc: str) -> dict:
         return await self._get(f"/credito/{cliente_ruc}")
 
