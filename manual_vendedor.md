@@ -1,90 +1,91 @@
 # Cómo usar a Catu
 
 Catu es el asistente que tenemos en WhatsApp para apoyarte en el día a día. La idea es simple:
-en vez de entrar a SAP o llamar a la oficina por cada cosa rápida, le escribes a Catu y te
-responde al toque —stock, precios de lista, el estado de tus clientes, sus pedidos, cobranzas,
-lo que necesites.
+en vez de entrar al sistema o llamar a la oficina por cada cosa rápida, le escribes a Catu y te
+responde al toque —stock, precios de lista, tus clientes, sus pedidos, si ya les llegó la
+mercadería, la placa de un vehículo, lo que necesites.
 
 No es una app ni tiene menús. Le hablas como le hablarías a un compañero por chat.
 
 ## Lo primero
 
-Guarda el número de Catu y mándale un mensaje. No tienes que registrarte ni poner códigos:
-te reconoce por tu número y solo trabaja con tu cartera, así que todo lo que veas es tuyo y
-de nadie más.
+Guarda el número de Catu y mándale un mensaje. Te reconoce por tu número y solo trabaja con
+**tu** cartera, así que todo lo que veas es tuyo y de nadie más. (Si tu número todavía no está
+dado de alta, te va a avisar para que lo registren; escríbele a tu supervisor.)
 
 Si en algún momento la conversación se enreda o quieres empezar de cero, escribe **"reiniciar"**.
 
 ## Qué le puedes preguntar
 
-La forma más fácil de entenderlo es con ejemplos. Todo esto funciona tal cual, en lenguaje normal:
+La forma más fácil de entenderlo es con ejemplos. Todo esto funciona en lenguaje normal:
 
-**Tus clientes y tu cartera.** "¿Qué clientes tengo?", "¿cuántos están activos?", "dame el
-perfil de Repuestos Razo". No necesitas el RUC: con el nombre basta, Catu lo busca en tu
-cartera. Si hay dos parecidos, te pregunta a cuál te refieres.
+**Buscar productos.** *"Búscame filtros de aceite para Toyota"*, *"amortiguador trasero para
+Suzuki Swift"*, *"pastillas delanteras para Hilux"*. No tienes que saber el código ni escribirlo
+igual que el sistema: Catu entiende como hablas (trasero, delantero, habitáculo, etc.) y busca por
+nombre, marca o modelo. Si salen muchos, te muestra los primeros y te pide afinar.
 
-**Crédito y cobranzas.** "¿Cuánto crédito le queda a Transportes Andinos?", "¿tiene deuda
-vencida?", "¿cuánto me debe y cuándo vence?", "¿qué clientes míos tienen letras por vencer?".
+**Stock.** *"¿Hay stock del C-1011?"*, *"¿cuánto queda de ese?"*. Si un producto existe pero no
+tiene stock cargado, te lo dice claro ("sin stock disponible") en vez de dar vueltas.
 
-**Stock y productos.** "¿Cuántas unidades hay del FIL-BOC-0001?", "búscame filtros de aceite
-para Toyota", "¿hay algo equivalente a este código?".
+**Precios.** *"¿Cuál es el precio del C-1011?"*. Ojo: Catu maneja el **precio de lista**. Los
+netos, descuentos por volumen o precios especiales no los da —esos los ves con tu jefe de línea.
 
-**Precios.** "¿Cuál es el precio de lista del FIL-BOC-0001?". Ojo con esto: Catu maneja el
-precio de lista. Los netos, descuentos por volumen o precios especiales no los da —esos los
-ves con tu jefe de línea.
+**Foto de un producto.** *"Mándame la foto del 33120"*, *"¿tienes imagen de ese producto?"*.
+Catu te envía la(s) foto(s) del repuesto directo al chat. Pídesela cuando la necesites.
 
-**Pedidos y entregas.** "¿Cuáles son los últimos pedidos de Transportes Andinos?", "¿en qué
-estado está el pedido PED-000123 de ese cliente?", "¿cuándo le llega?". Un consejo: cuando
-preguntes por un pedido, dile también de qué cliente es. Así lo encuentra de una.
+**Tu cartera y tus clientes.** *"¿Qué clientes tengo?"*, *"pásame mi cartera"*, *"¿a quiénes le
+vendo en Cusco?"*. Solo ves los tuyos.
 
-**Pagos y documentos.** "¿El pedido tal de Transportes Andinos ya está pagado?", "pásame la
-factura de ese pedido", "¿y la guía de remisión?".
+**Perfil de un cliente.** *"Dame el perfil de Contratistas Cáceres"*, *"¿dónde queda tal
+cliente?"*. No necesitas el RUC: con el nombre basta, Catu lo busca en tu cartera. Si hay dos
+parecidos, te pregunta a cuál te refieres.
 
-**Vehículos.** "¿Qué repuestos sirven para la placa ABC-123?". También puede consultar la
-placa en SUNARP —eso se demora entre 20 y 60 segundos y te llega la foto de la tarjeta.
+**Pedidos.** *"¿Qué pedidos tiene tal cliente?"*. Te muestra sus pedidos con el estado, el monto
+y el número de factura. Búscalo **por el cliente** (nombre o RUC), no por el número de pedido.
 
-## Lo que Catu no hace (y por qué)
+**Entregas / despacho.** *"¿Ya se entregó el pedido de tal cliente?"*, *"¿en qué va el despacho?"*.
+Te dice si ya se entregó, con qué guía de remisión y en qué fecha.
 
-Conviene tenerlo claro para no perder tiempo. Hay cosas que, a propósito, Catu no resuelve y
-te manda al área que corresponde.
+**Placas.** *"¿Qué auto es la placa ABC-123?"*. Te trae los datos del vehículo (marca, modelo,
+dueño) y la foto de la tarjeta. Tarda unos 30 segundos: pídela y espera, no repitas el mensaje.
 
-Los precios netos, descuentos por volumen o precios especiales los coordinas con tu jefe de
-línea. Una excepción de crédito tampoco la aprueba Catu; eso es de créditos. Si preguntas en
-qué almacén está un producto o a qué hora sale el reparto, te va a decir que eso lo ve
-logística. Y si un producto está agotado, por ahora no te puede dar la fecha de reposición
-—eso lo confirmas con tu jefe de línea.
+## Lo que Catu NO hace todavía (y te lo dice)
 
-Tampoco te va a dar información de un cliente que no es tuyo: si preguntas por uno de otra
-cartera, simplemente te dice que no es tuyo.
+Estas cosas aún no están conectadas. Si las pides, Catu te avisa y te manda al canal correcto —no
+te inventa datos:
 
-Y lo más importante: Catu no inventa. Si no tiene un dato, te lo dice de frente en vez de
-adivinar. Si alguna vez te responde algo que te suena raro, confírmalo.
+- **Crédito** de un cliente (línea, deuda, disponible) → área de créditos.
+- **Cobranzas, letras o vencimientos.**
+- **Facturas o guías para descargar** (Catu te dice el número de factura, pero no te pasa el PDF).
+- **Historial de compras** de un cliente.
+- **Fichas técnicas** de productos (la foto sí te la manda; la ficha técnica todavía no).
+- **Precios netos / descuentos** → tu jefe de línea.
 
 ## Si un cliente reclama
 
-Cuando un cliente te diga que algo llegó mal —producto equivocado, dañado, lo que sea—
-cuéntaselo a Catu con el número de pedido y el motivo. Por ejemplo: "el cliente reclama que
-recibió un producto equivocado en el pedido PED-000123". Catu toma los datos y pasa el caso a
-atención al cliente para que lo gestionen.
+Cuéntale a Catu el caso (de qué pedido es y el motivo). Él toma los datos y lo deriva a atención
+al cliente para que lo gestionen. Catu no resuelve el reclamo, pero deja el caso registrado.
 
 ## Un par de mañas que ayudan
 
-Háblale natural, no necesitas escribir como robot: "¿cuánto me debe Transportes Andinos?"
-funciona igual que cualquier comando rebuscado.
-
-Nombra al cliente en vez de andar buscando el RUC. Para pedidos y facturas, acompáñalo del
-cliente. Y pregunta de a una cosa —si le mandas tres temas mezclados en un solo mensaje, se
-complica.
+- **Busca por palabra clave, no por frases largas.** *"amortiguador Hilux"* funciona mejor que
+  *"qué amortiguadores hay para la camioneta Toyota Hilux 2018"*.
+- **Nombra al cliente por su nombre**, no hace falta el RUC.
+- Para el **despacho** de un cliente, Catu primero busca sus pedidos y después la entrega de cada
+  uno —dale un momento.
+- Si algo no aparece, prueba con otra palabra (la marca, el modelo) antes de darlo por perdido.
 
 ## Preguntas que siempre salen
 
-**¿Catu ve los clientes de otros asesores?** No. Solo el tuyo.
+**¿Ve mis precios netos?** No. Solo precio de lista.
 
-**¿Los precios son los finales?** Es el precio de lista. El neto lo ves con tu jefe de línea.
+**¿Puede ver clientes que no son míos?** No. Solo tu cartera.
 
-**¿Puedo hacer un pedido por Catu?** Por ahora no. Catu es para consultar; el pedido lo
-registras como siempre.
+**¿Guarda las conversaciones?** Sí, quedan registradas (las usa el equipo para mejorar el
+asistente), pero tu información de cartera solo la ves tú.
 
-**¿Por qué a veces se demora?** Casi todo es instantáneo. Lo único lento es la consulta de
-placa en SUNARP, que puede tomar hasta un minuto.
-</content>
+**Me dijo que algo "no está conectado".** Es de las funciones que todavía no tiene (crédito,
+cobranzas, documentos, historial). Se van agregando de a poco.
+
+**No me encontró un producto que sé que existe.** Prueba con otra palabra (marca o tipo). Si aun
+así no aparece, avísale a tu jefe de línea que puede estar con otra denominación.
