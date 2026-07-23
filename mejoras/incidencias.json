@@ -1,6 +1,6 @@
 {
   "titulo": "Catusita · Registro de incidencias y mejoras del agente",
-  "actualizado": "2026-07-20",
+  "actualizado": "2026-07-21 16:06 (hora Perú)",
   "ultima_revision": "2026-07-17T21:54:40+00:00",
   "_nota_ultima_revision": "Marca de agua (UTC): el skill solo analiza chats con mensajes POSTERIORES a esta fecha. Se actualiza al final de cada revisión con el mensaje más reciente visto.",
   "incidencias": [
@@ -107,11 +107,11 @@
       "id": 12,
       "area": "Catálogo / Productos",
       "incidencia": "Un vendedor (51948985984) pidió la foto de un producto ('tienes foto de ese item?') y el agente respondió que no maneja imágenes de productos.",
-      "mejora": "A corto plazo, ofrecer una salida clara (dónde ver la imagen). A futuro, conectar las imágenes o fichas técnicas del catálogo cuando estén disponibles.",
-      "resumen": "El vendedor podrá ver la foto o ficha técnica del repuesto; hoy el agente no las tiene y solo puede avisar que no están disponibles.",
-      "estado": "Rechazado",
-      "motivo": "No es un bug: las imágenes/fichas técnicas no las expone la API de Catusita. Depende de que el proveedor provea ese dato (como pedidos o crédito), no de nuestro código. No hay nada que implementar de nuestro lado por ahora.",
-      "fecha": "2026-07-14"
+      "mejora": "Catusita expuso las imágenes de productos (campo 'images' por artículo). Se conectó al agente: cuando el vendedor pide la foto de un producto por su código, Catu descarga la imagen y se la envía por WhatsApp como foto (no como link).",
+      "resumen": "El vendedor ya puede pedir la foto de un producto y Catu se la manda al chat como imagen. Antes se rechazó porque Catusita no las exponía; ahora sí.",
+      "estado": "Aplicado",
+      "motivo": "Estaba rechazada porque la API no exponía imágenes. Catusita agregó el campo 'images' (2026-07-22) y se implementó el mismo día.",
+      "fecha": "2026-07-22"
     },
     {
       "id": 13,
