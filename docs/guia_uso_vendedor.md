@@ -61,6 +61,65 @@ Por su nombre, no hace falta el RUC:
 
 ---
 
+## 💬 Ejemplos: qué le preguntas y qué te responde
+
+Ejemplos reales de cómo se ve una conversación con Catu. No tienes que escribir igual —es solo
+para que veas el estilo.
+
+**Buscar un producto (en lenguaje normal)**
+> **Tú:** Búscame filtros de aceite para Toyota Hilux
+> **Catu:** Encontré varias opciones compatibles con Hilux: C-1123, C-1147 y C-1160 (filtros de
+> aceite Sakura). ¿Quieres precio o stock de alguno?
+
+**Buscar como hablas (aunque el catálogo lo abrevie)**
+> **Tú:** Amortiguador trasero para Suzuki Swift
+> **Catu:** Aquí los amortiguadores posteriores para Swift: 41810-58M00 (Swift 2011 en adelante),
+> 4181053R00 (2017 en adelante)… ¿De qué año es el Swift? Así te confirmo cuál va.
+
+**Stock**
+> **Tú:** ¿Hay stock del 33120?
+> **Catu:** Sí. El **33120** (Filtro de petróleo WIX) tiene **70 unidades**. ¿Te doy el precio?
+
+**Un producto que existe pero sin stock**
+> **Tú:** Stock del PP530
+> **Catu:** El **PP530** (Aceite 5W30 Valvoline) existe pero **sin stock disponible** ahora. Su
+> precio de lista es **USD 55.50**.
+
+**Precio**
+> **Tú:** ¿Cuál es el precio del 33120?
+> **Catu:** El **33120** cuesta **USD 6.72** (precio de lista).
+
+**Foto de un producto**
+> **Tú:** Mándame la foto del 33120
+> **Catu:** Listo, te envié la foto del 33120 al chat 📷 *(la imagen llega al toque)*.
+
+**Tu cartera**
+> **Tú:** ¿Qué clientes tengo?
+> **Catu:** Tienes 150 clientes asignados. Te listo los primeros con su RUC… ¿Filtras por distrito?
+
+**Perfil de un cliente (por su nombre)**
+> **Tú:** Dame el perfil de Contratistas Cáceres
+> **Catu:** Contratistas Generales Cáceres S.C.R.L. (RUC 20518081421). Dirección: … · Distrito: La Victoria.
+
+**Pedidos de un cliente**
+> **Tú:** ¿Qué pedidos tiene Contratistas Cáceres?
+> **Catu:** Tiene 3 pedidos recientes. El más reciente: **Pedido 270947** — FACTURADO — **$1,645.95** —
+> Factura **F001-0102835**. ¿Quieres ver si ya se entregó?
+
+**Seguimiento de entrega**
+> **Tú:** ¿Ya se entregó ese pedido?
+> **Catu:** El pedido **270947** fue **entregado el 25/06/2026**. Guía: **TR01-0032992**.
+
+**Identificar una placa**
+> **Tú:** ¿Qué auto es la placa F9N562?
+> **Catu:** Consulta enviada ✅, en ~30s te llegan los datos del vehículo y la foto de la tarjeta.
+
+**Algo que todavía no hace (te deriva, no inventa)**
+> **Tú:** ¿Cuánto crédito le queda a Contratistas Cáceres?
+> **Catu:** La consulta de crédito todavía no está conectada; coordínala con el área de créditos.
+
+---
+
 ## ⚠️ Lo que Catu NO hace todavía (te lo dice y deriva)
 
 Aún no están conectadas. Si las pides, Catu te avisa y te manda al canal correcto —no inventa:
