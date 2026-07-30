@@ -233,17 +233,28 @@ async def _procesar_item(item: dict) -> dict:
     # ----------------------------------------------------------------------
     for media in media_list:
         try:
-            await kapso_mod.kapso.send_image_base64(
-                numero,
-                phone_number_id,
-                media["imagen_base64"],
-                caption=media.get("caption", ""),
-                filename=media.get("filename", "imagen.png"),
-            )
-            print(f"[WEBHOOK] foto enviada a WhatsApp ({media.get('filename')})")
+            if media.get("documento_base64"):
+                await kapso_mod.kapso.send_document_base64(
+                    numero,
+                    phone_number_id,
+                    media["documento_base64"],
+                    filename=media.get("filename", "documento.pdf"),
+                    caption=media.get("caption", ""),
+                    mime=media.get("mime", "application/pdf"),
+                )
+                print(f"[WEBHOOK] documento enviado a WhatsApp ({media.get('filename')})")
+            else:
+                await kapso_mod.kapso.send_image_base64(
+                    numero,
+                    phone_number_id,
+                    media["imagen_base64"],
+                    caption=media.get("caption", ""),
+                    filename=media.get("filename", "imagen.png"),
+                )
+                print(f"[WEBHOOK] foto enviada a WhatsApp ({media.get('filename')})")
         except Exception as e:
-            logging.error(f"Error enviando imagen por Kapso: {e}", exc_info=True)
-            print(f"[WEBHOOK] ERROR enviando imagen: {e}")
+            logging.error(f"Error enviando media por Kapso: {e}", exc_info=True)
+            print(f"[WEBHOOK] ERROR enviando media: {e}")
 
     return {"status": "ok"}
 
@@ -526,14 +537,23 @@ async def _procesar_item_waha(data: dict) -> dict:
 
     for media in media_list:
         try:
-            await _messenger().send_image_base64(
-                from_field, "",
-                media["imagen_base64"],
-                caption=media.get("caption", ""),
-                filename=media.get("filename", "imagen.png"),
-            )
+            if media.get("documento_base64"):
+                await _messenger().send_document_base64(
+                    from_field, "",
+                    media["documento_base64"],
+                    filename=media.get("filename", "documento.pdf"),
+                    caption=media.get("caption", ""),
+                    mime=media.get("mime", "application/pdf"),
+                )
+            else:
+                await _messenger().send_image_base64(
+                    from_field, "",
+                    media["imagen_base64"],
+                    caption=media.get("caption", ""),
+                    filename=media.get("filename", "imagen.png"),
+                )
         except Exception as e:
-            print(f"[WAHA] ERROR enviando imagen: {e}")
+            print(f"[WAHA] ERROR enviando media: {e}")
 
     return {"status": "ok"}
 

@@ -110,6 +110,38 @@ class WAHAClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def send_document_base64(
+        self,
+        numero: str,
+        instance: str,
+        documento_base64: str,
+        filename: str = "documento.pdf",
+        caption: str = "",
+        mime: str = "application/pdf",
+    ) -> dict:
+        """Envía un documento (PDF) en base64 como archivo adjunto.
+
+        WAHA Core usa /api/sendFile con el contenido crudo en `file.data`."""
+        raw_b64 = documento_base64
+        if raw_b64.startswith("data:"):
+            raw_b64 = raw_b64.split(",", 1)[1]
+        body = {
+            "session": WAHA_SESSION,
+            "chatId": _chat_id(numero),
+            "file": {"mimetype": mime, "filename": filename, "data": raw_b64},
+            "caption": caption,
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{WAHA_BASE_URL}/api/sendFile",
+                headers=_headers(),
+                json=body,
+            )
+            if resp.status_code >= 400:
+                print(f"[WAHA] error {resp.status_code}: {resp.text}")
+            resp.raise_for_status()
+            return resp.json()
+
     async def send_image_base64(
         self,
         numero: str,

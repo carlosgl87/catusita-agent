@@ -54,6 +54,13 @@ Por su nombre, no hace falta el RUC:
 
 > Te dice si ya se entregó, con qué **guía de remisión** y en qué **fecha**.
 
+### 📎 Factura / nota de crédito en PDF  *(nuevo)*
+- *"Mándame la factura del pedido de tal cliente"* · *"Descárgame la F001-0102835"* · *"La nota de crédito de ese cliente"*
+
+> Catu te envía el **PDF** al chat como archivo. Se busca por el **cliente** y el número de
+> documento; si no lo tienes, primero mira los pedidos del cliente. Solo **facturas y notas de
+> crédito** (la guía de remisión aún no se descarga), y solo en **PDF**.
+
 ### 🚗 Identificar una placa
 - *"¿Qué auto es la placa F9N562?"*
 
@@ -110,6 +117,10 @@ para que veas el estilo.
 > **Tú:** ¿Ya se entregó ese pedido?
 > **Catu:** El pedido **270947** fue **entregado el 25/06/2026**. Guía: **TR01-0032992**.
 
+**Factura en PDF**
+> **Tú:** Mándame la factura de ese pedido
+> **Catu:** Listo, te envié el PDF de la factura **F001-0102835** al chat 📎.
+
 **Identificar una placa**
 > **Tú:** ¿Qué auto es la placa F9N562?
 > **Catu:** Consulta enviada ✅, en ~30s te llegan los datos del vehículo y la foto de la tarjeta.
@@ -125,7 +136,7 @@ para que veas el estilo.
 Aún no están conectadas. Si las pides, Catu te avisa y te manda al canal correcto —no inventa:
 - ❌ **Crédito** (línea, deuda, disponible) → área de créditos
 - ❌ **Cobranzas, letras o vencimientos**
-- ❌ **Descargar** facturas o guías en PDF (sí te dice el número de factura)
+- ❌ **Descargar la guía de remisión** en PDF (factura y nota de crédito sí; guía todavía no)
 - ❌ **Historial de compras** de un cliente
 - ❌ **Fichas técnicas** de productos (la foto sí te la manda; la ficha técnica todavía no)
 - ❌ **Repuestos compatibles por placa/VIN** (busca por nombre o marca)

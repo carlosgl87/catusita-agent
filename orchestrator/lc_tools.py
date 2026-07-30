@@ -342,6 +342,45 @@ async def enviar_imagen_producto(
 
 
 @tool
+async def enviar_documento(
+    cliente_ruc: str,
+    numero_documento: str,
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Envía por WhatsApp el PDF de una FACTURA o NOTA DE CRÉDITO de un cliente. Úsala cuando el vendedor pida 'mándame la factura', 'descárgame la factura del pedido X', 'la nota de crédito de tal cliente'. Necesita el RUC del cliente y el número del documento (ej. F001-0102835); si no tienes el número, primero usa consultar_pedidos para obtenerlo de los pedidos del cliente. El PDF se manda automáticamente al chat como archivo; en tu texto solo confírmale que se lo enviaste. Solo maneja facturas y notas de crédito (no guías de remisión)."""
+    perfil = state["perfil"]
+    args = {"cliente_ruc": cliente_ruc}
+    denegado = await access.verificar_acceso_cartera("enviar_documento", args, perfil)
+    if denegado:
+        return _to_command(denegado, tool_call_id)
+    t0 = time.time()
+    resultado = await documents.enviar_documento(args["cliente_ruc"], numero_documento)
+    if not resultado or resultado.get("error"):
+        await _log(perfil, "enviar_documento", t0)
+        return _to_command(
+            resultado or {"error": "SIN_DOCUMENTO",
+                          "mensaje": f"No pude obtener el documento {numero_documento}."},
+            tool_call_id,
+        )
+    numero = resultado.get("numero", numero_documento)
+    tipo = resultado.get("tipo", "documento")
+    media = [{
+        "documento_base64": resultado["pdf_base64"],
+        "caption": f"{tipo} {numero}",
+        "filename": resultado.get("filename", f"{numero}.pdf"),
+        "mime": resultado.get("mime", "application/pdf"),
+    }]
+    await _log(perfil, "enviar_documento", t0)
+    return _to_command(
+        {"numero": numero, "tipo": tipo, "cliente": resultado.get("cliente", ""),
+         "mensaje": f"Te envié el PDF de {tipo} {numero} al chat."},
+        tool_call_id,
+        {"media_pendiente": media},
+    )
+
+
+@tool
 async def identificar_vehiculo(
     placa_o_vin: str,
     state: Annotated[dict, InjectedState],
@@ -472,6 +511,7 @@ TOOLS_VENDEDOR_LC = [
     consultar_perfil_cliente,
     buscar_catalogo,
     enviar_imagen_producto,
+    enviar_documento,
     consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]

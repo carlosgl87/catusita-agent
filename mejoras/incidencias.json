@@ -1,6 +1,6 @@
 {
   "titulo": "Catusita · Registro de incidencias y mejoras del agente",
-  "actualizado": "2026-07-21 16:06 (hora Perú)",
+  "actualizado": "2026-07-30 (hora Perú)",
   "ultima_revision": "2026-07-17T21:54:40+00:00",
   "_nota_ultima_revision": "Marca de agua (UTC): el skill solo analiza chats con mensajes POSTERIORES a esta fecha. Se actualiza al final de cada revisión con el mensaje más reciente visto.",
   "incidencias": [
@@ -157,6 +157,15 @@
       "resumen": "Cuando un producto existe pero no tiene stock, el agente lo dirá claro ('sin stock disponible') en vez de dar vueltas pidiendo confirmar el código.",
       "estado": "Aplicado",
       "fecha": "2026-07-21"
+    },
+    {
+      "id": 18,
+      "area": "Documentos",
+      "incidencia": "El agente no podía enviar la factura ni la nota de crédito de un pedido: cuando se lo pedían, avisaba que 'la descarga de documentos todavía no está conectada'. Era una capacidad apagada porque la API de Catusita no exponía los documentos electrónicos.",
+      "mejora": "Catusita expuso el endpoint de documentos electrónicos (búsqueda por N° + tipo + empresa, con URL de PDF/XML). Se conectó al agente: cuando el vendedor pide la factura o la nota de crédito de un cliente, Catu ubica el documento en los pedidos del cliente, descarga el PDF y se lo envía por WhatsApp como archivo. Solo factura (01) y nota de crédito (07), y solo PDF (el XML es para SUNAT/contabilidad). La guía de remisión no está expuesta en este endpoint.",
+      "resumen": "El vendedor ya puede pedir la factura o la nota de crédito de un pedido y Catu se la manda al chat como PDF. Antes esto no estaba disponible.",
+      "estado": "Aplicado",
+      "fecha": "2026-07-30"
     }
   ]
 }

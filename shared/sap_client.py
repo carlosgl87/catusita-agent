@@ -68,6 +68,12 @@ class SAPClient:
         """Foto(s) de un producto ya descargadas (base64). Timeout largo: descarga imágenes."""
         return await self._get(f"/imagen/{sku}", timeout=30.0)
 
+    async def get_documento(self, numero: str, tipo: str = "01", empresa: str = "04") -> dict:
+        """Factura o NC en PDF ya descargado (base64). Requiere N° + tipo (01/07) +
+        empresa (04/01). Timeout largo: descarga el PDF del server 8086."""
+        params = {"numero": numero, "tipo": tipo, "empresa": empresa}
+        return await self._get("/documento", params=params, timeout=30.0)
+
     async def get_credito(self, cliente_ruc: str) -> dict:
         return await self._get(f"/credito/{cliente_ruc}")
 

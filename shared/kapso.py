@@ -191,5 +191,41 @@ class KapsoClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def send_document_base64(
+        self,
+        numero: str,
+        instance: str,
+        documento_base64: str,
+        filename: str = "documento.pdf",
+        caption: str = "",
+        mime: str = "application/pdf",
+    ) -> dict:
+        """Envía un documento (PDF) a partir de su contenido en base64.
+
+        Sube el archivo como media (obtiene media_id) y luego manda un mensaje
+        tipo `document` referenciando ese id."""
+        numero_clean = _normalizar_numero(numero)
+        raw = base64.b64decode(documento_base64)
+        media_id = await self._upload_media(
+            raw, phone_number_id=instance, filename=filename, mime=mime
+        )
+        doc_payload: dict = {"id": media_id, "filename": filename}
+        if caption:
+            doc_payload["caption"] = caption
+        body = {
+            "messaging_product": "whatsapp",
+            "to": numero_clean,
+            "type": "document",
+            "document": doc_payload,
+        }
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                self._send_url(instance), headers=self._headers, json=body
+            )
+            if resp.status_code >= 400:
+                print(f"[KAPSO] error {resp.status_code}: {resp.text}")
+            resp.raise_for_status()
+            return resp.json()
+
 
 kapso = KapsoClient()
