@@ -1,0 +1,3 @@
+# Los scripts de arranque DEBEN ir con LF: un CRLF rompe el shebang en el
+# contenedor Linux ("/app/start.sh: No such file or directory").
+*.sh text eol=lf
