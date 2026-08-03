@@ -74,6 +74,15 @@ class SAPClient:
         params = {"numero": numero, "tipo": tipo, "empresa": empresa}
         return await self._get("/documento", params=params, timeout=30.0)
 
+    async def get_documento_pagos(self, numero: str, tipo: str = "01",
+                                  empresa: str = "04", cliente: str = None) -> dict:
+        """Cómo se pagó/canceló un documento: estado de deuda, letras (canje), notas
+        de crédito y detalle de pagos. Requiere N° SUNAT + tipo (01/07) + empresa."""
+        params = {"numero": numero, "tipo": tipo, "empresa": empresa}
+        if cliente:
+            params["cliente"] = cliente
+        return await self._get("/documento/pagos", params=params, timeout=20.0)
+
     async def get_credito(self, cliente_ruc: str) -> dict:
         return await self._get(f"/credito/{cliente_ruc}")
 

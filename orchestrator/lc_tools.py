@@ -381,6 +381,28 @@ async def enviar_documento(
 
 
 @tool
+async def consultar_pago_documento(
+    cliente_ruc: str,
+    numero_documento: str,
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Consulta el ESTADO DE PAGO de una factura o nota de crédito de un cliente: si ya está pagada, si se pagó con LETRAS (canje) o con NOTA DE CRÉDITO, el saldo pendiente y el detalle de los pagos. Úsala cuando pregunten '¿esta factura está pagada?', '¿se pagó con letras?', '¿le aplicaron nota de crédito?', '¿cuánto debe de esa factura?'. Necesita el RUC del cliente y el número del documento (ej. F001-0037749); si no tienes el número, primero usa consultar_pedidos. NO descarga el PDF (para eso está enviar_documento)."""
+    perfil = state["perfil"]
+    args = {"cliente_ruc": cliente_ruc}
+    denegado = await access.verificar_acceso_cartera("consultar_pago_documento", args, perfil)
+    if denegado:
+        return _to_command(denegado, tool_call_id)
+    t0 = time.time()
+    resultado = await documents.consultar_pago_documento(args["cliente_ruc"], numero_documento)
+    if not resultado or resultado.get("error"):
+        resultado = resultado or {"error": "SIN_DATO",
+                                  "mensaje": f"No pude obtener el estado de pago de {numero_documento}."}
+    await _log(perfil, "consultar_pago_documento", t0)
+    return _to_command(resultado, tool_call_id)
+
+
+@tool
 async def identificar_vehiculo(
     placa_o_vin: str,
     state: Annotated[dict, InjectedState],
@@ -512,6 +534,7 @@ TOOLS_VENDEDOR_LC = [
     buscar_catalogo,
     enviar_imagen_producto,
     enviar_documento,
+    consultar_pago_documento,
     consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]

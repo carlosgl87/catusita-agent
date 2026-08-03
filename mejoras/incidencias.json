@@ -1,6 +1,6 @@
 {
   "titulo": "Catusita · Registro de incidencias y mejoras del agente",
-  "actualizado": "2026-07-30 (hora Perú)",
+  "actualizado": "2026-08-03 (hora Perú)",
   "ultima_revision": "2026-07-17T21:54:40+00:00",
   "_nota_ultima_revision": "Marca de agua (UTC): el skill solo analiza chats con mensajes POSTERIORES a esta fecha. Se actualiza al final de cada revisión con el mensaje más reciente visto.",
   "incidencias": [
@@ -166,6 +166,15 @@
       "resumen": "El vendedor ya puede pedir la factura o la nota de crédito de un pedido y Catu se la manda al chat como PDF. Antes esto no estaba disponible.",
       "estado": "Aplicado",
       "fecha": "2026-07-30"
+    },
+    {
+      "id": 19,
+      "area": "Cobranzas / Documentos",
+      "incidencia": "El agente no podía decir si una factura estaba pagada, si se había canjeado por letras o si le aplicaron una nota de crédito: la cobranza estaba apagada porque la API de Catusita no lo exponía.",
+      "mejora": "Catusita expuso el endpoint de aplicación de pagos de documentos. Se conectó al agente: por factura (ubicada en los pedidos del cliente) devuelve el estado de pago, el saldo, si se pagó con letras (con el canje, cada letra y su vencimiento) o con nota de crédito, y el detalle de los pagos. Es el estado de UN documento, no el reporte de cobranzas de toda la cartera (eso sigue apagado). El monto de cada pago se toma de reconciliations[] (el ERP a veces deja el importe del lado del pago en 0).",
+      "resumen": "El vendedor ya puede preguntar '¿esta factura está pagada?' o '¿se pagó con letras?' y Catu le dice el estado, el saldo y el detalle (letras con su vencimiento). Antes no estaba disponible.",
+      "estado": "Aplicado",
+      "fecha": "2026-08-03"
     }
   ]
 }

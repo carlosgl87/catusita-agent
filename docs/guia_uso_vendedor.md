@@ -61,6 +61,13 @@ Por su nombre, no hace falta el RUC:
 > documento; si no lo tienes, primero mira los pedidos del cliente. Solo **facturas y notas de
 > crédito** (la guía de remisión aún no se descarga), y solo en **PDF**.
 
+### 💵 Estado de pago de una factura  *(nuevo)*
+- *"¿Está pagada la factura F001-0103841 de Mateo Parts?"* · *"¿Se pagó con letras?"* · *"¿Cuánto debe de esa factura?"*
+
+> Catu te dice si la factura está **pagada o pendiente**, el **saldo**, y si se pagó con **letras**
+> (con el canje, cada letra y su **vencimiento**) o con una **nota de crédito**. Es por **una
+> factura puntual**, no el reporte de cobranzas de toda la cartera (eso todavía no está).
+
 ### 🚗 Identificar una placa
 - *"¿Qué auto es la placa F9N562?"*
 
@@ -121,6 +128,11 @@ para que veas el estilo.
 > **Tú:** Mándame la factura de ese pedido
 > **Catu:** Listo, te envié el PDF de la factura **F001-0102835** al chat 📎.
 
+**Estado de pago de una factura**
+> **Tú:** ¿Está pagada la F001-0103841 de Mateo Parts?
+> **Catu:** Esa factura se **canjeó por una letra** (canje 66555). La letra de **USD 198.00**
+> está **pendiente** y vence el **30/08/2026**. Saldo por cobrar: **USD 198.00**.
+
 **Identificar una placa**
 > **Tú:** ¿Qué auto es la placa F9N562?
 > **Catu:** Consulta enviada ✅, en ~30s te llegan los datos del vehículo y la foto de la tarjeta.
@@ -135,7 +147,7 @@ para que veas el estilo.
 
 Aún no están conectadas. Si las pides, Catu te avisa y te manda al canal correcto —no inventa:
 - ❌ **Crédito** (línea, deuda, disponible) → área de créditos
-- ❌ **Cobranzas, letras o vencimientos**
+- ❌ **Reporte de cobranzas de toda la cartera** (total por cobrar, vencido) — el pago y las letras de **una factura puntual** sí los ves
 - ❌ **Descargar la guía de remisión** en PDF (factura y nota de crédito sí; guía todavía no)
 - ❌ **Historial de compras** de un cliente
 - ❌ **Fichas técnicas** de productos (la foto sí te la manda; la ficha técnica todavía no)

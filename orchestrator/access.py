@@ -18,6 +18,7 @@ RUC_SCOPED_TOOLS = {
     "consultar_perfil_cliente": "ruc",
     "consultar_pedidos": "cliente_ruc",
     "enviar_documento": "cliente_ruc",
+    "consultar_pago_documento": "cliente_ruc",
 }
 
 
