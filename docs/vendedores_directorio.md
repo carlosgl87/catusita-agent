@@ -47,6 +47,7 @@
 | 57 | 0070 | Omar Velarde Durand | 65 |
 | 58 | 0074 | Osorio Echevarria Roger Alcides | 171 |
 | 60 | 0012 | Pinedo Peña Luz | 67 |
+| 84 | 0031 | Pacheco Quintana Gionvanna Sofia | 123 | ← alta 2026-08-07 (WhatsApp 51937142737)
 
 > Rango sondeado: SellerId 2–60. Puede haber más allá de 60. El máximo de clientes
 > observado es 294 (Saavedra) → el cap de cartera del servicio se fija por encima.

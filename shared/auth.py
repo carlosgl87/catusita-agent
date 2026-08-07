@@ -174,6 +174,17 @@ _MOCK_ASESORES = {
         "autenticado": True,
     },
 
+    "51937142737": {
+        "user_id": "asesor-84",
+        "tipo": "asesor",
+        "nombre": "Pacheco Quintana Gionvanna Sofia",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0031",
+        "vendedor_id": "84",   # 123 clientes
+        "autenticado": True,
+    },
+
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
     # vez del teléfono. Ese LID es estable por cuenta, así que se mapea igual que
