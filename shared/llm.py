@@ -13,9 +13,10 @@ async def create_message(
     messages: list,
     tools: list = None,
     max_tokens: int = 1024,
+    model: str = None,
 ) -> anthropic.types.Message:
     kwargs = {
-        "model": MODEL,
+        "model": model or MODEL,
         "max_tokens": max_tokens,
         "system": system,
         "messages": messages,

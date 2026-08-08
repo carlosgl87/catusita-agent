@@ -1,7 +1,7 @@
 {
   "titulo": "Catusita · Registro de incidencias y mejoras del agente",
-  "actualizado": "2026-08-03 (hora Perú)",
-  "ultima_revision": "2026-07-17T21:54:40+00:00",
+  "actualizado": "2026-08-08 (hora Perú)",
+  "ultima_revision": "2026-08-07T17:49:30+00:00",
   "_nota_ultima_revision": "Marca de agua (UTC): el skill solo analiza chats con mensajes POSTERIORES a esta fecha. Se actualiza al final de cada revisión con el mensaje más reciente visto.",
   "incidencias": [
     {
@@ -175,6 +175,43 @@
       "resumen": "El vendedor ya puede preguntar '¿esta factura está pagada?' o '¿se pagó con letras?' y Catu le dice el estado, el saldo y el detalle (letras con su vencimiento). Antes no estaba disponible.",
       "estado": "Aplicado",
       "fecha": "2026-08-03"
+    },
+    {
+      "id": 20,
+      "area": "Buscador de catálogo",
+      "incidencia": "Cuando el vendedor agrega el AÑO (ej. 2015, 2018) o el CÓDIGO DE MOTOR (ej. G4LA) al buscar, el catálogo devuelve 0 resultados aunque el producto exista. Caso real (Roger): 'filtro para KIA Picanto 2015' → 0, pero 'filtro de aire picanto' → 4. Confirmado reproduciendo: 'filtro de aire kia picanto' devuelve 4, y al agregar '2015' o 'g4la' cae a 0. También 'filtro aceite corolla 2018' → 0 vs 'filtro aceite corolla' → 6.",
+      "mejora": "El buscador exige que TODOS los tokens aparezcan en el producto; el año y el código de motor no están en el texto del artículo, así que rompen el match. Ignorar (o no exigir) los tokens de año (19xx/20xx) y, si el match estricto da 0, reintentar relajando los tokens que por sí solos no matchean ningún producto.",
+      "resumen": "El vendedor podrá buscar como habla ('filtro para Picanto 2015') y el agente igual encontrará el producto, en vez de decir 'no encontré' porque el año o el motor no calzan literalmente.",
+      "mejora_aplicada": "Se convirtió la búsqueda de catálogo en un SUBAGENTE (A2A): un mini-agente Claude razona el término, ignora año/motor, prueba abreviaturas/sinónimos y reintenta al dar 0, con fallback determinista si el LLM falla. Verificado: 'filtro para KIA Picanto 2015' → 4 resultados (antes 0), 'corolla 2018' → 6, y los casos que ya funcionaban (amortiguador posterior, parachoques inexistente) siguen bien.",
+      "estado": "Aplicado",
+      "fecha": "2026-08-08"
+    },
+    {
+      "id": 21,
+      "area": "Consulta de placa",
+      "incidencia": "Al consultar una placa por Yahuar, además de 'consulta enviada' y los datos finales del vehículo, se le reenvía al vendedor un mensaje intermedio de saludo/aclaración de Yahuar ('¡Hola! Soy Yahuar 😊 ¿qué información buscas sobre esta placa?'). Caso real (Roger, placa BRW527): tras ese mensaje el vendedor respondió 'no ayudas' y recién después llegaron los datos.",
+      "mejora": "Filtrar los mensajes intermedios de Yahuar (saludo/aclaración) y reenviar al vendedor SOLO los datos finales del vehículo. Ampliar los patrones de aclaración que hoy se descartan (ej. 'qué información buscas', 'veo que me pasas', 'puedo:') o, mejor, reenviar únicamente el bloque estructurado de datos.",
+      "resumen": "Cuando el vendedor pida una placa, ya no le llegará el saludo de Yahuar que confunde: solo el aviso de 'consultando' y luego los datos del vehículo.",
+      "estado": "Pendiente",
+      "fecha": "2026-08-08"
+    },
+    {
+      "id": 22,
+      "area": "Cartera de clientes",
+      "incidencia": "Una vendedora (Patricia, 216 clientes) pidió 'envíame mi cartera completa' y el agente respondió que no puede exportar ni enviar un archivo con la lista; solo mostrarla en partes en el chat.",
+      "mejora": "Permitir exportar la cartera del vendedor como archivo (Excel o PDF) y enviárselo por WhatsApp, igual que hoy se envían las facturas en PDF.",
+      "resumen": "El vendedor podrá pedir su cartera completa y recibir un archivo con todos sus clientes, en vez de tener que verlos por partes en el chat.",
+      "estado": "Pendiente",
+      "fecha": "2026-08-08"
+    },
+    {
+      "id": 23,
+      "area": "Ventas / Reportes",
+      "incidencia": "Un vendedor (Fernando) pidió 'acumulado de ventas de agosto' y el agente respondió que esa función no está conectada y lo derivó al supervisor.",
+      "mejora": "Evaluar exponer el acumulado de ventas del vendedor por período (mes). Los montos existen en los pedidos por cliente; habría que agregar un total por vendedor y período (confirmar con Catusita la fuente correcta para no sumar mal facturas/NC).",
+      "resumen": "El vendedor podría preguntar cuánto lleva vendido en el mes y el agente le daría el acumulado, en vez de derivarlo al área de ventas.",
+      "estado": "Pendiente",
+      "fecha": "2026-08-08"
     }
   ]
 }
