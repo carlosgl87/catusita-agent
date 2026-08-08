@@ -563,11 +563,16 @@ _ERRORES_YAHUAR = (
     "inválida", "incorrecta", "no reconozco", "no tengo datos",
 )
 
-# Frases que indican que Yahuar pide aclaración (no es una respuesta final)
+# Frases que indican que Yahuar saluda o pide aclaración (no es una respuesta final).
+# Ampliado (incidencia #21): antes se colaba su saludo ("¿qué información buscas?")
+# y confundía al vendedor. Estos mensajes NO se reenvían; se auto-responde a Yahuar.
 _ACLARACION_YAHUAR = (
     "necesito entender", "¿es un", "cuéntame más", "qué consulta",
     "necesito saber", "puedes aclarar", "me puedes decir",
     "qué tipo de", "para poder ayudarte",
+    "qué información buscas", "que informacion buscas", "veo que me pasas",
+    "soy yahuar", "en qué te puedo ayudar", "en que te puedo ayudar",
+    "¿qué deseas", "puedo ayudarte",
 )
 
 _INSTRUCCION_PLACA = (
@@ -588,6 +593,10 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
 
     texto_resp = payload.get("body") or ""
     texto_lower = texto_resp.lower()
+
+    # ¿Hay un subagente bloqueante esperando esta placa? Si sí, el resultado final
+    # se GUARDA en Redis (no se empuja al vendedor): el subagente lo recoge.
+    bloqueante = await yahuar_mod.es_bloqueante(placa)
 
     # ── Aclaración de Yahuar: responder automáticamente sin acumular ──────────
     if any(p in texto_lower for p in _ACLARACION_YAHUAR):
@@ -634,6 +643,13 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
         if t:
             t_low = t.lower()
             if any(e in t_low for e in _ERRORES_YAHUAR):
+                if bloqueante:
+                    await yahuar_mod.guardar_resultado(placa, {
+                        "error": "NO_ENCONTRADO",
+                        "mensaje": (f"No pude obtener datos de la placa {placa}. "
+                                    "Verifica que esté escrita correctamente."),
+                    })
+                    return {"status": "ok", "modo": "bloqueante"}
                 await messenger.send_message(
                     destino, "",
                     f"⚠️ No pude obtener datos de la placa *{placa}*. "
@@ -673,6 +689,16 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
             print(f"[YAHUAR] visión OK datos={bool(datos_vision)}", flush=True)
         except Exception as e:
             print(f"[YAHUAR] error visión: {e}", flush=True)
+
+    # ── Modo bloqueante: guardar el resultado para el subagente y NO empujar ──
+    if bloqueante:
+        await yahuar_mod.guardar_resultado(placa, {
+            "datos": datos_vision or ("\n\n".join(textos) if textos else ""),
+            "imagen_base64": imagen_b64,
+            "imagen_mime": imagen_mime,
+        })
+        print(f"[YAHUAR] modo bloqueante: resultado guardado para el subagente (placa {placa})", flush=True)
+        return {"status": "ok", "modo": "bloqueante"}
 
     # Construir y enviar respuesta final
     if datos_vision:

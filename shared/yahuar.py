@@ -127,3 +127,51 @@ async def get_pendiente() -> dict | None:
         await r.delete(PENDING_KEY)
         return json.loads(raw)
     return None
+
+
+# ─── Modo bloqueante (subagente) ──────────────────────────────────────────────
+# Cuando el tool consulta la placa de forma BLOQUEANTE, marca un flag por placa.
+# El webhook, al procesar la respuesta de Yahuar, si ve el flag GUARDA el resultado
+# en Redis (en vez de empujarlo al vendedor) y el subagente lo recoge y lo devuelve
+# como resultado del tool. Así el agente arma UNA sola respuesta limpia.
+
+BLOCK_KEY_PREFIX  = "yahuar:block:"
+RESULT_KEY_PREFIX = "yahuar:result:"
+BLOCK_TTL   = 120
+RESULT_TTL  = 120
+
+
+def _pk(placa: str) -> str:
+    return (placa or "").upper().replace(" ", "").replace("-", "")
+
+
+async def set_bloqueante(placa: str) -> None:
+    r = await _get_redis()
+    await r.setex(BLOCK_KEY_PREFIX + _pk(placa), BLOCK_TTL, "1")
+
+
+async def es_bloqueante(placa: str) -> bool:
+    r = await _get_redis()
+    return bool(await r.get(BLOCK_KEY_PREFIX + _pk(placa)))
+
+
+async def clear_bloqueante(placa: str) -> None:
+    r = await _get_redis()
+    await r.delete(BLOCK_KEY_PREFIX + _pk(placa))
+
+
+async def guardar_resultado(placa: str, payload: dict) -> None:
+    r = await _get_redis()
+    await r.setex(RESULT_KEY_PREFIX + _pk(placa), RESULT_TTL,
+                  json.dumps(payload, ensure_ascii=False))
+
+
+async def get_resultado(placa: str) -> dict | None:
+    r = await _get_redis()
+    raw = await r.get(RESULT_KEY_PREFIX + _pk(placa))
+    return json.loads(raw) if raw else None
+
+
+async def clear_resultado(placa: str) -> None:
+    r = await _get_redis()
+    await r.delete(RESULT_KEY_PREFIX + _pk(placa))

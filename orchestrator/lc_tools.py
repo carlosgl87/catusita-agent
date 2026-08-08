@@ -464,39 +464,59 @@ async def consultar_placa_sunarp(
 
 # ─── Placa vía Yahuar (WhatsApp relay) ───────────────────────────────────────
 
+_YAHUAR_BLOQUEANTE = os.getenv("YAHUAR_BLOQUEANTE", "true").lower() == "true"
+
+
 @tool
 async def consultar_placa_yahuar(
     placa: str,
     state: Annotated[dict, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """Consulta los datos de un vehículo peruano por su placa enviando la consulta al servicio Yahuar vía WhatsApp. Úsala cuando pregunten qué auto es una placa, a quién pertenece, o quieran los datos del vehículo. Tarda ~30 segundos: avisa al usuario que la respuesta llegará en un momento. La foto y los datos llegan automáticamente al chat."""
+    """Consulta los datos de un vehículo peruano por su placa vía el servicio Yahuar. Úsala cuando pregunten qué auto es una placa, a quién pertenece, o quieran los datos del vehículo. La consulta BLOQUEA hasta obtener la respuesta (~30-60s): cuando devuelva, tendrás los datos del vehículo en 'datos_vehiculo_texto' — preséntaselos al usuario por escrito. La foto de la tarjeta se envía sola al chat (si 'tiene_imagen' es true, menciónaselo). Si devuelve 'error', comunícalo. NO la llames de nuevo en el mismo turno."""
     from shared import yahuar as yahuar_mod
     perfil     = state["perfil"]
     from_field = perfil.get("from_field") or perfil.get("numero", "")
+    placa_clean = placa.strip().upper()
     t0 = time.time()
 
-    # Serialización: si ya hay una consulta en vuelo, no mandar otra
-    existente = await yahuar_mod.peek_pendiente()
-    if existente:
-        resultado = {
-            "placa": existente.get("placa", placa).upper(),
-            "mensaje": "Ya hay una consulta de placa en proceso. La respuesta llegará en momentos al chat. NO vuelvas a llamar este tool.",
-        }
+    # ── Modo async viejo (kill-switch YAHUAR_BLOQUEANTE=false) ─────────────────
+    if not _YAHUAR_BLOQUEANTE:
+        existente = await yahuar_mod.peek_pendiente()
+        if existente:
+            await _log(perfil, "consultar_placa_yahuar", t0)
+            return _to_command({
+                "placa": existente.get("placa", placa_clean),
+                "mensaje": "Ya hay una consulta de placa en proceso. La respuesta llegará en momentos al chat. NO vuelvas a llamar este tool.",
+            }, tool_call_id)
+        try:
+            await yahuar_mod.consultar_placa(placa_clean, from_field)
+            resultado = {"placa": placa_clean,
+                         "mensaje": f"Consulta enviada a Yahuar para la placa {placa_clean}. Llega en ~30s al chat. NO llames este tool de nuevo."}
+        except Exception as e:
+            logging.error(f"Error consultando Yahuar: {e}")
+            resultado = {"error": "YAHUAR_ERROR", "mensaje": "No pude consultar la placa en este momento. Inténtalo de nuevo."}
         await _log(perfil, "consultar_placa_yahuar", t0)
         return _to_command(resultado, tool_call_id)
 
-    try:
-        await yahuar_mod.consultar_placa(placa.strip().upper(), from_field)
-        resultado = {
-            "placa": placa.strip().upper(),
-            "mensaje": f"Consulta enviada a Yahuar para la placa {placa.strip().upper()}. La respuesta llega en ~30 segundos directamente al chat. NO llames este tool de nuevo.",
-        }
-    except Exception as e:
-        logging.error(f"Error consultando Yahuar: {e}")
-        resultado = {"error": "YAHUAR_ERROR", "mensaje": "No pude consultar la placa en este momento. Inténtalo de nuevo."}
+    # ── Modo BLOQUEANTE (subagente): espera la respuesta y la devuelve limpia ──
+    from agents import yahuar_subagente
+    resultado = await yahuar_subagente.consultar_placa_bloqueante(placa_clean, from_field)
+
+    extra: dict = {}
+    if resultado.get("imagen_base64"):
+        b64 = resultado.pop("imagen_base64")
+        pc = resultado.get("placa", placa_clean)
+        ext = (resultado.get("imagen_mime") or "image/jpeg").split("/")[-1].replace("jpeg", "jpg")
+        extra["media_pendiente"] = [{
+            "imagen_base64": b64,
+            "caption": f"Tarjeta vehicular — {pc}",
+            "filename": f"placa_{pc}.{ext}",
+        }]
+    resultado.pop("imagen_mime", None)
+
     await _log(perfil, "consultar_placa_yahuar", t0)
-    return _to_command(resultado, tool_call_id)
+    return _to_command(resultado, tool_call_id, extra)
 
 
 # ─── Solo clientes ────────────────────────────────────────────────────────────

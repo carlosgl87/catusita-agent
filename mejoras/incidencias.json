@@ -192,7 +192,8 @@
       "incidencia": "Al consultar una placa por Yahuar, además de 'consulta enviada' y los datos finales del vehículo, se le reenvía al vendedor un mensaje intermedio de saludo/aclaración de Yahuar ('¡Hola! Soy Yahuar 😊 ¿qué información buscas sobre esta placa?'). Caso real (Roger, placa BRW527): tras ese mensaje el vendedor respondió 'no ayudas' y recién después llegaron los datos.",
       "mejora": "Filtrar los mensajes intermedios de Yahuar (saludo/aclaración) y reenviar al vendedor SOLO los datos finales del vehículo. Ampliar los patrones de aclaración que hoy se descartan (ej. 'qué información buscas', 'veo que me pasas', 'puedo:') o, mejor, reenviar únicamente el bloque estructurado de datos.",
       "resumen": "Cuando el vendedor pida una placa, ya no le llegará el saludo de Yahuar que confunde: solo el aviso de 'consultando' y luego los datos del vehículo.",
-      "estado": "Pendiente",
+      "mejora_aplicada": "Se encapsuló la consulta de placa en un SUBAGENTE bloqueante (A2A): el tool avisa 'consultando…', envía la placa a Yahuar y BLOQUEA (corre en background task, no cuelga el HTTP) hasta que el webhook deposita el resultado final en Redis; ahí devuelve los datos limpios del vehículo + la foto para que el agente arme UNA sola respuesta. Los mensajes intermedios de Yahuar (saludo/aclaración) ya no se reenvían (patrones ampliados: 'qué información buscas', 'soy yahuar', etc.). Kill-switch YAHUAR_BLOQUEANTE=false vuelve al relay async. Verificado: control de flujo (envío/bloqueo/recogida/timeout/error) por unit test; el round-trip real se confirma con una placa en vivo.",
+      "estado": "Aplicado",
       "fecha": "2026-08-08"
     },
     {
