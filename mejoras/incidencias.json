@@ -202,7 +202,8 @@
       "incidencia": "Una vendedora (Patricia, 216 clientes) pidió 'envíame mi cartera completa' y el agente respondió que no puede exportar ni enviar un archivo con la lista; solo mostrarla en partes en el chat.",
       "mejora": "Permitir exportar la cartera del vendedor como archivo (Excel o PDF) y enviárselo por WhatsApp, igual que hoy se envían las facturas en PDF.",
       "resumen": "El vendedor podrá pedir su cartera completa y recibir un archivo con todos sus clientes, en vez de tener que verlos por partes en el chat.",
-      "estado": "Pendiente",
+      "estado": "Rechazado",
+      "motivo": "No autorizado aún; en gestión. Requiere aprobación antes de implementarse.",
       "fecha": "2026-08-08"
     },
     {
@@ -211,7 +212,8 @@
       "incidencia": "Un vendedor (Fernando) pidió 'acumulado de ventas de agosto' y el agente respondió que esa función no está conectada y lo derivó al supervisor.",
       "mejora": "Evaluar exponer el acumulado de ventas del vendedor por período (mes). Los montos existen en los pedidos por cliente; habría que agregar un total por vendedor y período (confirmar con Catusita la fuente correcta para no sumar mal facturas/NC).",
       "resumen": "El vendedor podría preguntar cuánto lleva vendido en el mes y el agente le daría el acumulado, en vez de derivarlo al área de ventas.",
-      "estado": "Pendiente",
+      "estado": "Rechazado",
+      "motivo": "No autorizado aún; en gestión. Requiere aprobación antes de implementarse.",
       "fecha": "2026-08-08"
     }
   ]
