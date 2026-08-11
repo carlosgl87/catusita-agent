@@ -184,6 +184,26 @@ _MOCK_ASESORES = {
         "vendedor_id": "84",   # 123 clientes
         "autenticado": True,
     },
+    "51940428503": {   # 2do número de William Quispe
+        "user_id": "asesor-53",
+        "tipo": "asesor",
+        "nombre": "Quispe Tasa William",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0009",
+        "vendedor_id": "53",   # 188 clientes
+        "autenticado": True,
+    },
+    "51922102217": {   # 2do número de Steffany Escobar
+        "user_id": "asesor-29",
+        "tipo": "asesor",
+        "nombre": "Escobar Herrera Stephanny",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0052",
+        "vendedor_id": "29",   # 165 clientes
+        "autenticado": True,
+    },
 
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
