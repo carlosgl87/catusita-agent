@@ -204,6 +204,16 @@ _MOCK_ASESORES = {
         "vendedor_id": "29",   # 165 clientes
         "autenticado": True,
     },
+    "51931074829": {
+        "user_id": "asesor-82",
+        "tipo": "asesor",
+        "nombre": "Salome Santamaria Jessenia Del Rosario",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0076",
+        "vendedor_id": "82",   # 141 clientes
+        "autenticado": True,
+    },
 
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
