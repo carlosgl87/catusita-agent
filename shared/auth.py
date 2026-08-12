@@ -498,6 +498,109 @@ _MOCK_ASESORES = {
         "autenticado": True,
     },
 
+    # ── Habilitados SIN cartera (no figuran en el ERP): acceso a features
+    #    generales (stock, precio, catalogo, placa); cartera vacia via 99999 ──
+    "51997004283": {
+        "user_id": "asesor-sincartera-51997004283",
+        "tipo": "asesor",
+        "nombre": "Vega Ampuero, Luis Carlos",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "0016",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51904031197": {
+        "user_id": "asesor-sincartera-51904031197",
+        "tipo": "asesor",
+        "nombre": "Luis Romero",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51950306818": {
+        "user_id": "asesor-sincartera-51950306818",
+        "tipo": "asesor",
+        "nombre": "Bruno Cavassa",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51987829716": {
+        "user_id": "asesor-sincartera-51987829716",
+        "tipo": "asesor",
+        "nombre": "Enrique Rivera",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51934812235": {
+        "user_id": "asesor-sincartera-51934812235",
+        "tipo": "asesor",
+        "nombre": "Martin Inga",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51946769823": {
+        "user_id": "asesor-sincartera-51946769823",
+        "tipo": "asesor",
+        "nombre": "David Caceres",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51994546446": {
+        "user_id": "asesor-sincartera-51994546446",
+        "tipo": "asesor",
+        "nombre": "Milagros Negrillo",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51998322145": {
+        "user_id": "asesor-sincartera-51998322145",
+        "tipo": "asesor",
+        "nombre": "Jose Marquez",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51998074449": {
+        "user_id": "asesor-sincartera-51998074449",
+        "tipo": "asesor",
+        "nombre": "Feliciano Murga",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+    "51997333858": {
+        "user_id": "asesor-sincartera-51997333858",
+        "tipo": "asesor",
+        "nombre": "Edwin Ampuero",
+        "linea_asignada": "",
+        "nivel_acceso": "completo",
+        "asesor_id": "SIN-CODIGO",
+        "vendedor_id": "99999",   # sin SellerId en el ERP -> cartera vacia
+        "autenticado": True,
+    },
+
     # ── LIDs ──────────────────────────────────────────────────────────────────
     # WAHA entrega para algunos contactos el LID interno de Meta ('<lid>@lid') en
     # vez del teléfono. Ese LID es estable por cuenta, así que se mapea igual que
