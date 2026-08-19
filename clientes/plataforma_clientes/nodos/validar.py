@@ -25,7 +25,7 @@ MAX_REINTENTOS = 1. Si el agente ya corrigió una vez y la segunda validación
 también falla, se deja pasar con WARNING: un loop infinito de correcciones deja
 al usuario sin respuesta, que es peor que una respuesta imperfecta.
 
-Migrado desde orchestrator/nodes/validar.py.
+Migrado desde orchestrator/nodes/validar.py, con SOLO las reglas de clientes.
 """
 import json
 import logging
@@ -33,8 +33,8 @@ import re
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from plataforma import llm
-from plataforma.estado import EstadoAgente
+from clientes.plataforma_clientes import llm
+from clientes.plataforma_clientes.estado import EstadoAgente
 
 MAX_REINTENTOS = 1
 
@@ -42,13 +42,16 @@ MAX_REINTENTOS = 1
 _TOOLS_SENSIBLES = {"consultar_perfil_cliente"}
 
 
-# ─── Reglas de privacidad, por multiagente ───────────────────────────────────
+# ─── Reglas de privacidad de clientes ────────────────────────────────────
 #
 # Solo bloquear cuando el agente REVELA el dato (con número o lugar), NO cuando
 # lo menciona para decir que no puede compartirlo. Por eso casi todos los
 # patrones exigen un número al lado.
 
-_PROHIBIDO_VENDEDORES = [
+# Para clientes es MÁS estricto que para vendedores, no menos: acá ni siquiera
+# existe el permiso. Un cliente nunca ve neto, cartera ni crédito, con número
+# o sin él — por eso `precio neto` a secas alcanza para bloquear.
+_PROHIBIDO = [
     # Lo que un asesor no debe reenviarle a un cliente.
     r"precio\s*neto[^.\n]{0,30}\d[\d.,]*",
     r"sin\s*igv[^.\n]{0,30}s?/?\s*\.?\s*\d[\d.,]*",
@@ -56,11 +59,6 @@ _PROHIBIDO_VENDEDORES = [
     r"alm[aá]cen\s+(de\s+)?(miraflores|ate|lima|callao|san\s*isidro)",
     r"hora\s*de\s*reparto[^.\n]{0,20}\d{1,2}[:\s*h]",
     r"ruta\s+(de\s+)?reparto",
-]
-
-# Para clientes es MÁS estricto, no menos: acá ni siquiera existe el permiso.
-# Un cliente nunca ve neto, cartera ni condición de crédito, con número o sin él.
-_PROHIBIDO_CLIENTES = _PROHIBIDO_VENDEDORES + [
     r"precio\s*neto",
     r"l[ií]mite\s+de\s+cr[eé]dito",
     r"deuda\s+(actual|pendiente)",
@@ -68,16 +66,7 @@ _PROHIBIDO_CLIENTES = _PROHIBIDO_VENDEDORES + [
     r"letra[s]?\s+(por\s+)?vencer",
 ]
 
-_REGLAS = {
-    "vendedores":   _PROHIBIDO_VENDEDORES,
-    "clientes":     _PROHIBIDO_CLIENTES,
-    # Los supervisores ven lo de vendedores. Se revisa cuando se defina su alcance.
-    "supervisores": _PROHIBIDO_VENDEDORES,
-}
-
-_COMPILADAS = {
-    k: [re.compile(p, re.IGNORECASE) for p in v] for k, v in _REGLAS.items()
-}
+_COMPILADAS = [re.compile(p, re.IGNORECASE) for p in _PROHIBIDO]
 
 
 # ─── Patrones de repregunta ──────────────────────────────────────────────────
@@ -158,8 +147,8 @@ def _hubo_tools(messages: list) -> bool:
 
 # ─── Reglas ──────────────────────────────────────────────────────────────────
 
-def _r1_privacidad(borrador: str, multiagente: str) -> str | None:
-    for r in _COMPILADAS.get(multiagente, []):
+def _r1_privacidad(borrador: str) -> str | None:
+    for r in _COMPILADAS:
         if r.search(borrador):
             return (
                 "La respuesta revela información restringida (precio neto, descuento, "
@@ -219,43 +208,39 @@ async def _r4_juez(pregunta: str, borrador: str) -> dict:
 
 # ─── Nodo ────────────────────────────────────────────────────────────────────
 
-def hacer_nodo_validar(multiagente: str):
-    """Devuelve el nodo `validar` de UN multiagente, con sus reglas."""
+async def nodo_validar(state: EstadoAgente) -> dict:
+    messages = list(state.get("messages", []))
+    resuelto = state.get("resuelto") or {}
+    intentos = state.get("intentos_validacion", 0)
 
-    async def nodo_validar(state: EstadoAgente) -> dict:
-        messages = list(state.get("messages", []))
-        resuelto = state.get("resuelto") or {}
-        intentos = state.get("intentos_validacion", 0)
+    borrador = _borrador(messages)
+    if not borrador:
+        return {"validacion": {"ok": True}}
 
-        borrador = _borrador(messages)
-        if not borrador:
-            return {"validacion": {"ok": True}}
-
-        if intentos >= MAX_REINTENTOS:
-            logging.warning("validar: tope de reintentos, se deja pasar.")
-            return {"validacion": {"ok": True}, "intentos_validacion": intentos}
-
-        pregunta = _ultima_pregunta(messages)
-
-        def rechazar(motivo: str) -> dict:
-            logging.warning(f"validar RECHAZÓ ({multiagente}, intento {intentos}): {motivo[:100]}")
-            return {"validacion": {"ok": False, "motivo": motivo},
-                    "intentos_validacion": intentos + 1}
-
-        for motivo in (
-            _r1_privacidad(borrador, multiagente),
-            _r2_repregunta(borrador, resuelto),
-            _r3_no_uso_tools(borrador, pregunta, _hubo_tools(messages), resuelto),
-        ):
-            if motivo:
-                return rechazar(motivo)
-
-        if _tools_usadas(messages) & _TOOLS_SENSIBLES:
-            veredicto = await _r4_juez(pregunta, borrador)
-            if not veredicto.get("ok", True):
-                return rechazar(veredicto.get("motivo",
-                                              "La respuesta no superó la auditoría."))
-
+    if intentos >= MAX_REINTENTOS:
+        logging.warning("validar: tope de reintentos, se deja pasar.")
         return {"validacion": {"ok": True}, "intentos_validacion": intentos}
 
-    return nodo_validar
+    pregunta = _ultima_pregunta(messages)
+
+    def rechazar(motivo: str) -> dict:
+        logging.warning(f"validar RECHAZÓ (clientes, intento {intentos}): {motivo[:100]}")
+        return {"validacion": {"ok": False, "motivo": motivo},
+                "intentos_validacion": intentos + 1}
+
+    for motivo in (
+        _r1_privacidad(borrador),
+        _r2_repregunta(borrador, resuelto),
+        _r3_no_uso_tools(borrador, pregunta, _hubo_tools(messages), resuelto),
+    ):
+        if motivo:
+            return rechazar(motivo)
+
+    if _tools_usadas(messages) & _TOOLS_SENSIBLES:
+        veredicto = await _r4_juez(pregunta, borrador)
+        if not veredicto.get("ok", True):
+            return rechazar(veredicto.get("motivo",
+                                          "La respuesta no superó la auditoría."))
+
+    return {"validacion": {"ok": True}, "intentos_validacion": intentos}
+

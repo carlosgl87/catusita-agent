@@ -42,7 +42,7 @@ import json
 import time
 import uuid
 
-from plataforma import redis as redis_mod
+from vendedores.plataforma_vendedores import redis as redis_mod
 
 # Silencio que se espera antes de dar el turno por cerrado.
 # OJO: no lo dejes en 3.0 por inercia. Sácalo de la distribución real de huecos

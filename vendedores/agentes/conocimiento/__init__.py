@@ -73,7 +73,5 @@ from vendedores.agentes.conocimiento.tools import TOOLS
 # Chico: hoy solo formatea lo que devuelve la búsqueda.
 MODELO = "claude-haiku-4-5-20251001"
 
-# Su cola propia. La consume SU servicio, nadie más.
-COLA = "v:conocimiento"
 
-__all__ = ["MODELO", "COLA", "NODO", "TOOLS"]
+__all__ = ["MODELO", "NODO", "TOOLS"]

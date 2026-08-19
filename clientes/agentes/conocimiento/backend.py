@@ -14,7 +14,7 @@ proceso de otro multiagente no puede salir de acá ni con el query mal escrito.
      ORDER BY embedding <=> $1
      LIMIT $2
 """
-from plataforma.embeddings import MODELO as MODELO_EMBEDDING, embeber  # noqa: F401
+from clientes.plataforma_clientes.embeddings import MODELO as MODELO_EMBEDDING, embeber  # noqa: F401
 
 TABLA_PROCESOS   = "conocimiento_clientes"
 TABLA_SOLICITUD  = "solicitud_proceso_nuevo_clientes"

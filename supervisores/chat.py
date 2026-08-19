@@ -7,7 +7,7 @@ alcance está sin definir —ver supervisores/orquestador.py, la pregunta abiert
 de si un supervisor puede ver la cartera de SUS asesores. La tabla y este módulo
 existen para que el día que se defina, no haya que inventar dónde guardar.
 """
-from plataforma import db
+from supervisores.plataforma_supervisores import db
 
 TABLA = "chat_messages_supervisores"
 

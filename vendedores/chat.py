@@ -18,7 +18,7 @@ como hacía webhooks/whatsapp.py: el id tiene que existir cuando el grafo corre.
 Además arregla algo que ya estaba mal — si el agente reventaba, el mensaje del
 usuario se perdía de la BD.
 """
-from plataforma import db
+from vendedores.plataforma_vendedores import db
 
 TABLA = "chat_messages_vendedores"
 

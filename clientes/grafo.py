@@ -18,9 +18,9 @@ import os
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import tools_condition
 
-from plataforma.estado import EstadoAgente
-from plataforma.nodos.contexto import hacer_nodo_contexto
-from plataforma.nodos.validar import hacer_nodo_validar, MAX_REINTENTOS
+from clientes.plataforma_clientes.estado import EstadoAgente
+from clientes.plataforma_clientes.nodos.contexto import nodo_contexto
+from clientes.plataforma_clientes.nodos.validar import nodo_validar, MAX_REINTENTOS
 from clientes import registro
 from clientes.orquestador import nodo_orquestador
 
@@ -36,9 +36,9 @@ def _routing_validar(state) -> str:
 
 def construir():
     g = StateGraph(EstadoAgente)
-    g.add_node("contexto", hacer_nodo_contexto("clientes"))
+    g.add_node("contexto", nodo_contexto)
     g.add_node("orquestador", nodo_orquestador)
-    g.add_node("validar", hacer_nodo_validar("clientes"))
+    g.add_node("validar", nodo_validar)
 
     g.set_entry_point("contexto")
     g.add_edge("contexto", "orquestador")

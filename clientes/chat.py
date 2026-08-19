@@ -8,7 +8,7 @@ Se diferencia del de vendedores en quién es el dueño de la conversación: acá
 un RUC, no un vendedor_id. Un cliente se autentica con su RUC, y por eso el RUC
 es la PK del roster y la FK de esta tabla.
 """
-from plataforma import db
+from clientes.plataforma_clientes import db
 
 TABLA = "chat_messages_clientes"
 

@@ -41,8 +41,8 @@ necesita saber cómo se razona.
 import json
 import logging
 
-from plataforma import redis as redis_mod
-from plataforma.estado import EstadoAgente
+from clientes.plataforma_clientes import redis as redis_mod
+from clientes.plataforma_clientes.estado import EstadoAgente
 
 TTL = 7200        # 2 horas de inactividad
 MAX_MENSAJES = 20 # 10 turnos (user + assistant)
@@ -57,35 +57,29 @@ K_PROCESOS = 3
 UMBRAL = 0.35
 
 
-def hacer_nodo_contexto(multiagente: str):
-    """Devuelve el nodo `contexto` de UN multiagente.
+async def nodo_contexto(state: EstadoAgente) -> dict:
+    """Arma la memoria y la deja en el estado.
 
-    Es una fábrica y no un nodo suelto porque el multiagente no viaja en el
-    estado: lo fija el grafo al construirse. Así `vendedores/grafo.py` no puede
-    armar por accidente un nodo que lea el historial de `clientes` — tendría que
-    escribir el nombre, y no lo tiene en su paquete.
+    Ya no hace falta pasarle el multiagente: este módulo vive dentro de
+    `clientes/`, así que sus claves y sus tablas son las de clientes y ninguna otra.
 
     Hoy arma solo la capa 1. Las otras dos se agregan acá cuando existan.
     """
-
-    async def nodo_contexto(state: EstadoAgente) -> dict:
-        return {"historial": await _corto_plazo(multiagente, state["conversacion"])}
-
-    return nodo_contexto
+    return {"historial": await _corto_plazo(state["conversacion"])}
 
 
-def _clave(multiagente: str, conversacion: str) -> str:
-    """`conv:vendedores:51999...`
+def _clave(conversacion: str) -> str:
+    """`conv:clientes:51999...`
 
     El multiagente va en la clave, no solo en el valor: aunque el router fallara
-    y mandara un número al grafo equivocado, no podría leer el historial que ese
+    y mandara un número al worker equivocado, no podría leer el historial que ese
     número tiene del otro lado. La clave vieja era `conversation:{numero}`, sin
     esa separación.
     """
-    return f"conv:{multiagente}:{conversacion}"
+    return f"conv:clientes:{conversacion}"
 
 
-async def _corto_plazo(multiagente: str, conversacion: str) -> list:
+async def _corto_plazo(conversacion: str) -> list:
     """Historial de la conversación. Redis, TTL 2h.
 
     Ante un fallo de Redis devuelve [] en vez de romper: perder el contexto de
@@ -94,14 +88,14 @@ async def _corto_plazo(multiagente: str, conversacion: str) -> list:
     """
     try:
         r = await redis_mod.get()
-        crudo = await r.get(_clave(multiagente, conversacion))
+        crudo = await r.get(_clave(conversacion))
         return json.loads(crudo) if crudo else []
     except Exception as e:
         logging.warning(f"contexto: no se pudo leer el historial ({e})")
         return []
 
 
-async def guardar(multiagente: str, conversacion: str, rol: str, contenido: str) -> None:
+async def guardar(conversacion: str, rol: str, contenido: str) -> None:
     """Agrega un mensaje al historial y renueva el TTL.
 
     Lo llama el worker al cerrar el turno, no el grafo: el grafo lee memoria, no
@@ -109,19 +103,19 @@ async def guardar(multiagente: str, conversacion: str, rol: str, contenido: str)
     """
     try:
         r = await redis_mod.get()
-        k = _clave(multiagente, conversacion)
-        historial = await _corto_plazo(multiagente, conversacion)
+        k = _clave(conversacion)
+        historial = await _corto_plazo(conversacion)
         historial.append({"role": rol, "content": contenido})
         await r.setex(k, TTL, json.dumps(historial[-MAX_MENSAJES:], ensure_ascii=False))
     except Exception as e:
         logging.warning(f"contexto: no se pudo guardar el mensaje ({e})")
 
 
-async def olvidar(multiagente: str, conversacion: str) -> None:
+async def olvidar(conversacion: str) -> None:
     """Borra el historial. El comando «reiniciar» del usuario."""
     try:
         r = await redis_mod.get()
-        await r.delete(_clave(multiagente, conversacion))
+        await r.delete(_clave(conversacion))
     except Exception as e:
         logging.warning(f"contexto: no se pudo borrar el historial ({e})")
 
@@ -138,7 +132,7 @@ async def _largo_plazo(conversacion: str, perfil: dict) -> dict:
     raise NotImplementedError
 
 
-async def _procesos(consulta: str, multiagente: str) -> list:
+async def _procesos(consulta: str) -> list:
     """Procedimientos de Catusita que aplican a lo que están preguntando.
 
     Corre SIEMPRE, antes del orquestador. Busca por similitud contra el `cuando`

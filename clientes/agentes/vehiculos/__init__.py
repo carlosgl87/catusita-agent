@@ -23,7 +23,5 @@ from clientes.agentes.vehiculos.tools import TOOLS
 MODELO = "claude-sonnet-5"
 
 # SUNARP tarda 20-60s y se cuelga
-# Su cola propia. La consume SU servicio, nadie más.
-COLA = "c:vehiculos"
 
-__all__ = ["MODELO", "COLA", "NODO", "TOOLS"]
+__all__ = ["MODELO", "NODO", "TOOLS"]

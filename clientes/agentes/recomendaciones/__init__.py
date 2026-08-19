@@ -22,7 +22,5 @@ from clientes.agentes.recomendaciones.tools import TOOLS
 MODELO = "claude-sonnet-5"
 
 # lookup contra el backend, responde en segundos
-# Su cola propia. La consume SU servicio, nadie más.
-COLA = "c:recomendaciones"
 
-__all__ = ["MODELO", "COLA", "NODO", "TOOLS"]
+__all__ = ["MODELO", "NODO", "TOOLS"]

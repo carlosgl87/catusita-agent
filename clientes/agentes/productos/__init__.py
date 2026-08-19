@@ -23,7 +23,5 @@ from clientes.agentes.productos.tools import TOOLS
 MODELO = "claude-haiku-4-5-20251001"
 
 # lookup contra el backend, responde en segundos
-# Su cola propia. La consume SU servicio, nadie más.
-COLA = "c:productos"
 
-__all__ = ["MODELO", "COLA", "NODO", "TOOLS"]
+__all__ = ["MODELO", "NODO", "TOOLS"]
