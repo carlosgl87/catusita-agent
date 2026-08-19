@@ -1,56 +1,23 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 001 — NEUTRALIZADA A PROPÓSITO. No borrar el archivo: rompe la numeración.
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- Este archivo creaba `users`, `conversations`, `messages`, `claims` y
+-- `knowledge_base`. Las cinco están DROPEADAS: se auditó el código y ninguna se
+-- leía ni se escribía desde ningún lado.
+--
+-- El problema era que `init_db()` corría todas las migraciones en CADA arranque.
+-- Como los CREATE eran `IF NOT EXISTS`, no fallaban: simplemente volvían a crear
+-- las tablas borradas en el siguiente deploy, en silencio. Se dropeaban a mano y
+-- reaparecían solas.
+--
+-- Se arregló por los dos lados:
+--   1. acá, vaciando la migración
+--   2. en plataforma/db/, que ahora lleva registro de qué migración ya corrió
+--      en vez de reejecutarlas todas
+--
+-- Lo que reemplazó a `knowledge_base`: la tabla `conocimiento_*` de 004, con
+-- HNSW en vez de ivfflat y separada por multiagente.
+
+-- pgvector lo sigue necesitando 004.
 CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('asesor', 'cliente')),
-    whatsapp_number VARCHAR(20) UNIQUE,
-    ruc VARCHAR(20) UNIQUE,
-    nombre VARCHAR(100),
-    linea_asignada VARCHAR(50),
-    nivel_acceso VARCHAR(20) DEFAULT 'basico',
-    activo BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),
-    canal VARCHAR(20) DEFAULT 'whatsapp',
-    agente_tipo VARCHAR(20) NOT NULL CHECK (agente_tipo IN ('vendedor', 'cliente')),
-    numero_whatsapp VARCHAR(20),
-    iniciada_at TIMESTAMP DEFAULT NOW(),
-    ultima_actividad TIMESTAMP DEFAULT NOW(),
-    activa BOOLEAN DEFAULT true
-);
-
-CREATE TABLE IF NOT EXISTS messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    conversation_id UUID REFERENCES conversations(id),
-    rol VARCHAR(15) NOT NULL CHECK (rol IN ('user', 'assistant', 'tool')),
-    contenido TEXT NOT NULL,
-    tool_name VARCHAR(50),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS claims (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    numero_reclamo VARCHAR(20) UNIQUE NOT NULL,
-    conversation_id UUID REFERENCES conversations(id),
-    pedido_id VARCHAR(50),
-    motivo TEXT,
-    estado VARCHAR(20) DEFAULT 'pendiente',
-    asesor_notificado BOOLEAN DEFAULT false,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS knowledge_base (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tipo VARCHAR(30),
-    titulo TEXT,
-    contenido TEXT,
-    metadata JSONB,
-    embedding vector(1536),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS knowledge_base_embedding_idx ON knowledge_base USING ivfflat (embedding vector_cosine_ops);

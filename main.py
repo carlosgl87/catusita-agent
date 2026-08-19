@@ -1,4 +1,5 @@
 import os
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -26,10 +27,19 @@ async def _sync_vendedores():
 async def lifespan(app: FastAPI):
     # Solo inicializar DB si DATABASE_URL está configurado
     if os.getenv("DATABASE_URL"):
-        from db.connection import init_db, close_db
-        await init_db()
+        from db.connection import close_db
+        from plataforma import db as pdb
+
+        # Corredor con registro (plataforma/db), no el init_db() viejo. Aquel
+        # reejecutaba TODAS las migraciones en cada arranque: las tablas que se
+        # dropeaban a mano volvían solas en el siguiente deploy, sin avisar.
+        corridas = await pdb.migrar()
+        if corridas:
+            logging.info(f"migraciones aplicadas al arrancar: {corridas}")
+
         await _sync_vendedores()
         yield
+        await pdb.close()
         await close_db()
     else:
         yield

@@ -1,86 +1,37 @@
+"""Consultas del PANEL. No las usa ningún agente.
+
+El panel es la vista de administración: mira los datos de los tres multiagentes,
+y eso NO rompe el aislamiento — el aislamiento es entre agentes, no entre el
+agente y quien lo supervisa.
+
+Cada multiagente escribe en SU tabla a través de su propio módulo
+(`vendedores/chat.py`, `clientes/chat.py`, `supervisores/chat.py`). Acá solo se
+LEE, y por ahora solo la de vendedores: es el único con tráfico.
+
+Cuando clientes y supervisores tengan mensajes, estas consultas pasan a recibir
+la tabla por parámetro en vez de tenerla fija en TABLA.
+
+No usa ORM — queries directas con asyncpg.
 """
-Helpers para insertar y consultar registros en las tablas principales.
-No usa ORM — queries directas con asyncpg para máxima velocidad.
-"""
-import uuid
 from datetime import datetime, date
 from db.connection import get_pool
 
-
-async def get_user_by_whatsapp(numero: str) -> dict | None:
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM users WHERE whatsapp_number = $1 AND activo = true", numero
-        )
-    return dict(row) if row else None
+# Antes era `chat_messages`, una sola tabla con columna `canal`. Ahora hay una
+# por multiagente (migración 005) y el panel lee la de vendedores.
+TABLA = "chat_messages_vendedores"
 
 
-async def get_user_by_ruc(ruc: str) -> dict | None:
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM users WHERE ruc = $1 AND activo = true", ruc
-        )
-    return dict(row) if row else None
 
 
-async def create_conversation(user_id: str, agente_tipo: str, numero: str) -> str:
-    pool = await get_pool()
-    conv_id = str(uuid.uuid4())
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """INSERT INTO conversations (id, user_id, agente_tipo, numero_whatsapp)
-               VALUES ($1, $2, $3, $4)""",
-            conv_id, user_id, agente_tipo, numero,
-        )
-    return conv_id
-
-
-async def save_message(conversation_id: str, rol: str, contenido: str, tool_name: str = None):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """INSERT INTO messages (id, conversation_id, rol, contenido, tool_name)
-               VALUES ($1, $2, $3, $4, $5)""",
-            str(uuid.uuid4()), conversation_id, rol, contenido, tool_name,
-        )
-
-
-async def log_tool_usage(conversation_id: str, vendedor_id: str,
-                         tool_name: str, duracion_ms: int):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """INSERT INTO tool_usage (conversation_id, vendedor_id, tool_name, duracion_ms)
-               VALUES ($1, $2, $3, $4)""",
-            conversation_id, vendedor_id, tool_name, duracion_ms,
-        )
-
-
-async def save_chat_message(
-    numero: str,
-    rol: str,
-    contenido: str,
-    vendedor_id: str = None,
-    vendedor_nombre: str = None,
-    canal: str = "vendedor",
-    session_id: str = None,
-    tipo: str = "texto",
-    tools: list = None,
-    latencia_ms: int = None,
-) -> None:
-    """Guarda un mensaje/evento en chat_messages con sus dimensiones para estadísticas."""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """INSERT INTO chat_messages
-                 (numero, rol, contenido, vendedor_id, vendedor_nombre, canal,
-                  session_id, tipo, tools, latencia_ms)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
-            numero, rol, contenido, vendedor_id, vendedor_nombre, canal,
-            session_id, tipo, tools or [], latencia_ms,
-        )
+# save_chat_message() se retiró: ESCRIBIR es de cada multiagente.
+#
+#     vendedores/chat.py::guardar()     -> chat_messages_vendedores
+#     clientes/chat.py::guardar()       -> chat_messages_clientes
+#     supervisores/chat.py::guardar()   -> chat_messages_supervisores
+#
+# Tener el INSERT acá era justamente lo que hacía que los tres escribieran en la
+# misma tabla. Y las de allá devuelven el id de la fila, que hace falta para
+# `solicitud_proceso_nuevo_*.mensaje_id`.
 
 
 # ─── Roster de vendedores ─────────────────────────────────────────────────────
@@ -151,7 +102,7 @@ async def stats_resumen(vendedor_id=None, desde=None, hasta=None) -> dict:
         row = await conn.fetchrow(
             f"""SELECT COUNT(*) AS mensajes_totales,
                        COUNT(DISTINCT numero || '|' || ({_LIMA}::date)::text) AS conversaciones
-                  FROM chat_messages {where}""",
+                  FROM {TABLA} {where}""",
             *params,
         )
     return {"mensajes_totales": row["mensajes_totales"], "conversaciones": row["conversaciones"]}
@@ -163,7 +114,7 @@ async def stats_evolucion(vendedor_id=None, desde=None, hasta=None) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT date_trunc('week', {_LIMA})::date AS semana, COUNT(*) AS mensajes
-                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+                  FROM {TABLA} {where} GROUP BY 1 ORDER BY 1""",
             *params,
         )
     return [{"semana": r["semana"].isoformat(), "mensajes": r["mensajes"]} for r in rows]
@@ -175,7 +126,7 @@ async def stats_por_dia(vendedor_id=None, desde=None, hasta=None) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT EXTRACT(ISODOW FROM {_LIMA})::int AS dia, COUNT(*) AS n
-                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+                  FROM {TABLA} {where} GROUP BY 1 ORDER BY 1""",
             *params,
         )
     return [{"dia": r["dia"], "n": r["n"]} for r in rows]
@@ -187,7 +138,7 @@ async def stats_por_hora(vendedor_id=None, desde=None, hasta=None) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT EXTRACT(HOUR FROM {_LIMA})::int AS hora, COUNT(*) AS n
-                  FROM chat_messages {where} GROUP BY 1 ORDER BY 1""",
+                  FROM {TABLA} {where} GROUP BY 1 ORDER BY 1""",
             *params,
         )
     return [{"hora": r["hora"], "n": r["n"]} for r in rows]
@@ -199,7 +150,7 @@ async def stats_tools(vendedor_id=None, desde=None, hasta=None) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT t AS tool, COUNT(*) AS n
-                  FROM chat_messages, unnest(tools) t {where}
+                  FROM {TABLA}, unnest(tools) t {where}
                  GROUP BY 1 ORDER BY n DESC""",
             *params,
         )
@@ -213,7 +164,7 @@ async def stats_ranking(vendedor_id=None, desde=None, hasta=None) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT vendedor_id, MAX(vendedor_nombre) AS nombre, COUNT(*) AS mensajes
-                  FROM chat_messages {where}
+                  FROM {TABLA} {where}
                  GROUP BY vendedor_id ORDER BY mensajes DESC""",
             *params,
         )
@@ -224,9 +175,9 @@ async def stats_sin_uso() -> list:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """SELECT v.vendedor_id, v.nombre FROM vendedores v
+            f"""SELECT v.vendedor_id, v.nombre FROM vendedores v
                 WHERE v.activo AND NOT EXISTS (
-                    SELECT 1 FROM chat_messages m
+                    SELECT 1 FROM {TABLA} m
                      WHERE m.vendedor_id = v.vendedor_id AND m.rol = 'user')
                 ORDER BY v.nombre"""
         )
@@ -238,14 +189,14 @@ async def list_chats() -> list:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """
+            f"""
             SELECT m.numero,
                    COUNT(*)                              AS n,
                    MAX(m.created_at)                     AS last_ts,
-                   (SELECT contenido FROM chat_messages x
+                   (SELECT contenido FROM {TABLA} x
                      WHERE x.numero = m.numero
                      ORDER BY x.created_at DESC LIMIT 1) AS last_msg
-              FROM chat_messages m
+              FROM {TABLA} m
              GROUP BY m.numero
              ORDER BY last_ts DESC
             """
@@ -258,23 +209,11 @@ async def get_chat_messages(numero: str, limit: int = 500) -> list:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """SELECT rol, contenido, created_at
-                 FROM chat_messages
+            f"""SELECT rol, contenido, created_at
+                 FROM {TABLA}
                 WHERE numero = $1
                 ORDER BY created_at ASC
                 LIMIT $2""",
             numero, limit,
         )
     return [dict(r) for r in rows]
-
-
-async def create_claim(conversation_id: str, pedido_id: str, motivo: str) -> str:
-    pool = await get_pool()
-    numero = f"REC-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}"
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """INSERT INTO claims (id, numero_reclamo, conversation_id, pedido_id, motivo)
-               VALUES ($1, $2, $3, $4, $5)""",
-            str(uuid.uuid4()), numero, conversation_id, pedido_id, motivo,
-        )
-    return numero

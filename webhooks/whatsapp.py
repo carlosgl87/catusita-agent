@@ -45,10 +45,10 @@ from shared import auth
 from shared import kapso as kapso_mod
 from shared import waha as waha_mod
 from shared import yahuar as yahuar_mod
-from orchestrator import router as agent_router
 from orchestrator.graph import run_agent_graph_full
 from orchestrator import context
 from db import models
+from vendedores import chat as vendedores_chat
 
 router_wh = APIRouter()
 
@@ -63,7 +63,6 @@ def _session_id(numero: str) -> str:
 _tareas_bg: set = set()
 
 USE_AUTH_MOCK  = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
-USE_LANGGRAPH  = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
 PERSIST_TO_DB  = os.getenv("PERSIST_TO_DB", "false").lower() == "true"
 # WHATSAPP_PROVIDER=waha  →  usa WAHA para enviar mensajes
 # WHATSAPP_PROVIDER=kapso →  usa Kapso (default)
@@ -75,21 +74,6 @@ KAPSO_PHONE_NUMBER_ID = os.getenv("KAPSO_PHONE_NUMBER_ID", "")
 # phone_number_id acá y enrutamos. Por ahora solo tenemos el de vendedores.
 KAPSO_PHONE_NUMBER_ID_CLIENTES = os.getenv("KAPSO_PHONE_NUMBER_ID_CLIENTES", "")
 
-
-async def _abrir_conversacion(perfil: dict, agente_tipo: str, numero: str) -> str:
-    """
-    Crea un registro en la tabla conversations y devuelve su id.
-    Si la BD falla genera un UUID local para no romper el flujo.
-    En mock mode pasa user_id=None (la columna es nullable).
-    """
-    if PERSIST_TO_DB or not USE_AUTH_MOCK:
-        try:
-            user_id = None if USE_AUTH_MOCK else (perfil.get("user_id") or perfil.get("id"))
-            return await models.create_conversation(user_id, agente_tipo, numero)
-        except Exception as e:
-            logging.error(f"Error guardando en DB: {e}", exc_info=True)
-            print(f"Error guardando en DB (create_conversation): {e}")
-    return str(uuid.uuid4())
 
 
 def _resolver_agente_tipo(phone_number_id: str) -> str:
@@ -187,39 +171,27 @@ async def _procesar_item(item: dict) -> dict:
     # ----------------------------------------------------------------------
     # Ejecutar el agente
     # ----------------------------------------------------------------------
-    conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
-    perfil["conversation_id"] = conversation_id
+    # id de correlación para los logs; la conversación se agrupa por session_id
+    conversation_id = _session_id(numero)
     # Datos de envío para que las tools puedan encolar media (ej. foto SUNARP)
     perfil["numero"] = numero
     perfil["phone_number_id"] = phone_number_id
 
     historial = await context.get_history(numero)
     print(
-        f"[WEBHOOK] procesando con el router: "
+        f"[WEBHOOK] procesando con el grafo: "
         f"conversation_id={conversation_id} historial={len(historial)} msgs"
     )
 
-    if USE_LANGGRAPH:
-        respuesta, media_list, _tools = await run_agent_graph_full(texto, perfil, historial)
-    else:
-        respuesta = await agent_router.run_agent(texto, perfil, historial)
-        media_list = perfil.get("_media_pendiente", [])
+    respuesta, media_list, _tools = await run_agent_graph_full(texto, perfil, historial)
 
-    print(f"[WEBHOOK] respuesta ({'LangGraph' if USE_LANGGRAPH else 'router'}): {respuesta!r}")
+    print(f"[WEBHOOK] respuesta (LangGraph): {respuesta!r}")
 
     # ----------------------------------------------------------------------
     # Persistir y enviar
     # ----------------------------------------------------------------------
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
-
-    if PERSIST_TO_DB or not USE_AUTH_MOCK:
-        try:
-            await models.save_message(conversation_id, "user", texto)
-            await models.save_message(conversation_id, "assistant", respuesta)
-        except Exception as e:
-            logging.error(f"Error guardando en DB: {e}", exc_info=True)
-            print(f"Error guardando en DB (save_message): {e}")
 
     try:
         envio = await kapso_mod.kapso.send_message(numero, phone_number_id, respuesta)
@@ -487,46 +459,47 @@ async def _procesar_item_waha(data: dict) -> dict:
         await _messenger().send_message(from_field, "", "Conversación reiniciada. ¿En qué puedo ayudarte?")
         return {"status": "ok"}
 
-    conversation_id = await _abrir_conversacion(perfil, agente_tipo, numero)
-    perfil["conversation_id"] = conversation_id
+    # id de correlación para los logs; la conversación se agrupa por session_id
+    conversation_id = _session_id(numero)
     perfil["numero"]          = numero
     perfil["from_field"]      = from_field   # necesario para Yahuar relay
     perfil["phone_number_id"] = ""
 
     historial = await context.get_history(numero)
 
-    if USE_LANGGRAPH:
-        respuesta, media_list, tools_usadas = await run_agent_graph_full(texto, perfil, historial)
-    else:
-        respuesta = await agent_router.run_agent(texto, perfil, historial)
-        media_list = perfil.get("_media_pendiente", [])
-        tools_usadas = []
+    sess     = _session_id(numero)
+    vend_id  = perfil.get("vendedor_id")
+    vend_nom = perfil.get("nombre")
+
+    # El mensaje del usuario se guarda ANTES de correr el agente, no después.
+    # Dos motivos:
+    #   1. Si el agente revienta, antes el mensaje se perdía de la BD y quedaba
+    #      una conversación con la pregunta faltante.
+    #   2. `solicitud_proceso_nuevo_vendedores.mensaje_id` necesita este id, y el
+    #      agente lo va a abrir mientras corre.
+    # Best-effort: no poder registrar no es motivo para dejar sin contestar.
+    mensaje_id = None
+    try:
+        mensaje_id = await vendedores_chat.guardar(
+            numero, "user", texto, vendedor_id=vend_id, vendedor_nombre=vend_nom,
+            session_id=sess, tipo="texto",
+        )
+    except Exception as e:
+        logging.error(f"Error guardando el mensaje del usuario: {e}")
+
+    respuesta, media_list, tools_usadas = await run_agent_graph_full(texto, perfil, historial)
 
     await context.save_message(numero, "user", texto)
     await context.save_message(numero, "assistant", respuesta)
 
-    # Persistencia del panel/estadísticas (tabla enriquecida). Best-effort: nunca rompe el flujo.
     try:
-        sess = _session_id(numero)
-        vend_id  = perfil.get("vendedor_id")
-        vend_nom = perfil.get("nombre")
-        await models.save_chat_message(
-            numero, "user", texto, vendedor_id=vend_id, vendedor_nombre=vend_nom,
-            canal=agente_tipo, session_id=sess, tipo="texto",
-        )
-        await models.save_chat_message(
+        await vendedores_chat.guardar(
             numero, "assistant", respuesta, vendedor_id=vend_id, vendedor_nombre=vend_nom,
-            canal=agente_tipo, session_id=sess, tipo="texto", tools=tools_usadas,
+            session_id=sess, tipo="texto", tools=tools_usadas,
         )
     except Exception as e:
-        logging.error(f"Error guardando chat_messages: {e}")
+        logging.error(f"Error guardando la respuesta: {e}")
 
-    if PERSIST_TO_DB or not USE_AUTH_MOCK:
-        try:
-            await models.save_message(conversation_id, "user", texto)
-            await models.save_message(conversation_id, "assistant", respuesta)
-        except Exception as e:
-            logging.error(f"Error guardando en DB (WAHA): {e}", exc_info=True)
 
     try:
         await _messenger().send_message(from_field, "", respuesta)
@@ -738,7 +711,7 @@ async def _reenviar_yahuar(payload: dict, destino: str, placa: str) -> dict:
                 numero_dest = tel
         try:
             await context.save_message(numero_dest, "assistant", contenido)
-            await models.save_chat_message(numero_dest, "assistant", contenido)
+            await vendedores_chat.guardar(numero_dest, "assistant", contenido)
         except Exception as e:
             print(f"[YAHUAR] error guardando resultado: {e}", flush=True)
 
