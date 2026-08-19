@@ -2,10 +2,6 @@ from shared.sap_client import sap
 from agents import orders
 
 
-async def obtener_documentos(cliente_ruc: str, tipo: str = None) -> dict:
-    return await sap.get_documentos(cliente_ruc, tipo=tipo)
-
-
 def _norm_num(s: str) -> str:
     return (s or "").replace(" ", "").replace("/", "").upper()
 

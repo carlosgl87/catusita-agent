@@ -20,7 +20,7 @@ class SAPClient:
         """Helper para GET con manejo de errores uniforme.
 
         `timeout` permite sobreescribir el timeout por defecto del cliente
-        (útil para endpoints lentos como la consulta de placas en SUNARP).
+        (útil para endpoints lentos).
         """
         try:
             kwargs = {"params": params}
@@ -44,9 +44,6 @@ class SAPClient:
     async def get_precios(self, sku_code: str, tipo: str = None) -> dict:
         params = {"tipo": tipo} if tipo else None
         return await self._get(f"/precios/{sku_code}", params=params)
-
-    async def get_pedido_por_id(self, pedido_id: str) -> dict:
-        return await self._get(f"/pedido/{pedido_id}")
 
     async def get_pedidos(self, cliente_ruc: str, estado: str = None, limite: int = None) -> dict:
         params = {}
@@ -83,36 +80,13 @@ class SAPClient:
             params["cliente"] = cliente
         return await self._get("/documento/pagos", params=params, timeout=20.0)
 
-    async def get_credito(self, cliente_ruc: str) -> dict:
-        return await self._get(f"/credito/{cliente_ruc}")
-
-    async def get_cobranzas(self, cliente_ruc: str, estado: str = None) -> dict:
-        params = {"estado": estado} if estado else None
-        return await self._get(f"/cobranzas/{cliente_ruc}", params=params)
-
-    async def get_documentos(self, cliente_ruc: str, tipo: str = None) -> dict:
-        params = {"tipo": tipo} if tipo else None
-        return await self._get(f"/documentos/{cliente_ruc}", params=params)
-
     async def get_cliente(self, ruc: str) -> dict:
         return await self._get(f"/clientes/{ruc}")
 
-    async def get_historial(self, cliente_ruc: str, meses: int = None) -> dict:
-        params = {"meses": meses} if meses else None
-        return await self._get(f"/historial/{cliente_ruc}", params=params)
-
     async def get_vehiculo(self, placa_o_vin: str) -> dict:
+        """Datos de catálogo de un vehículo por placa/VIN. Lo usa el buscador
+        para filtrar repuestos compatibles."""
         return await self._get(f"/vehiculo/{placa_o_vin}")
-
-    async def get_placa(self, placa: str, imagen: bool = False) -> dict:
-        """Consulta oficial en SUNARP por placa.
-
-        Latencia alta (~20-60s, abre un navegador real), por eso usa un
-        timeout largo. Por defecto NO pide la imagen (imagen=false) para no
-        traer ~150 KB de base64 innecesarios.
-        """
-        params = {"imagen": str(imagen).lower()}
-        return await self._get(f"/placas/{placa}", params=params, timeout=120.0)
 
     async def get_catalogo(self, q: str = None, categoria: str = None,
                             marca: str = None, con_stock: bool = None) -> dict:

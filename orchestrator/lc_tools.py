@@ -12,7 +12,6 @@ Listas exportadas:
 """
 import os
 import json
-import time
 import logging
 from typing import Annotated, Optional
 
@@ -22,22 +21,11 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from agents import (
-    stock, prices, orders, credit, documents,
-    catalog_rag, vehicle, collections, claims, cartera, imagenes,
+    stock, prices, orders, documents,
+    catalog_rag, cartera, imagenes,
 )
 from orchestrator import access
 from shared import llm
-from db import models
-
-
-_INSTRUCCION_TARJETA_VEHICULAR = (
-    "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
-    "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles del "
-    "vehículo: placa, marca, modelo, año de fabricación, color, número de serie/VIN, "
-    "número de motor, categoría o clase, combustible y propietario(s) si aparecen. "
-    "Usa exactamente los valores que ves, no inventes. Si un campo no se lee, omítelo. "
-    "No agregues comentarios ni explicaciones: solo los datos."
-)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,20 +41,6 @@ def _to_command(resultado: dict, tool_call_id: str, extra: dict | None = None) -
 
 _USE_AUTH_MOCK = os.getenv("USE_AUTH_MOCK", "true").lower() == "true"
 
-
-async def _log(perfil: dict, name: str, t0: float) -> None:
-    # En modo mock no hay fila en `conversations`; loguear rompería la FK.
-    if _USE_AUTH_MOCK:
-        return
-    try:
-        ms = int((time.time() - t0) * 1000)
-        await models.log_tool_usage(
-            perfil.get("conversation_id", "mock"),
-            perfil.get("vendedor_id", "V001"),
-            name, ms,
-        )
-    except Exception as e:
-        logging.error(f"Error log_tool_usage: {e}")
 
 
 async def _sku_fallback(sku_code: str, resultado: dict) -> dict:
@@ -110,10 +84,8 @@ async def consultar_stock(
 ) -> Command:
     """Consulta el stock disponible de un producto en los almacenes. Usar cuando pregunten por disponibilidad, inventario o si hay stock de un producto."""
     perfil = state["perfil"]
-    t0 = time.time()
     resultado = await stock.consultar_stock(sku_code)
     resultado = await _sku_fallback(sku_code, resultado)
-    await _log(perfil, "consultar_stock", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -125,31 +97,12 @@ async def consultar_precio(
 ) -> Command:
     """Consulta el precio de lista de un producto. El agente SOLO muestra precio de lista, nunca precios netos ni descuentos."""
     perfil = state["perfil"]
-    t0 = time.time()
     resultado = await prices.consultar_precio(sku_code, tipo="lista")
     resultado = await _sku_fallback(sku_code, resultado)
-    await _log(perfil, "consultar_precio", t0)
     return _to_command(resultado, tool_call_id)
 
 
-# ─── Pedidos / crédito / documentos ──────────────────────────────────────────
-
-@tool
-async def buscar_pedido_por_id(
-    pedido_id: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Busca el estado, fechas, factura y guía de un pedido conociendo solo su número (ej. PED-000001). Úsala cuando el asesor mencione un número de pedido pero no el RUC del cliente. Devuelve el estado del pedido, número de factura, guía y el cliente_ruc."""
-    perfil = state["perfil"]
-    t0 = time.time()
-    resultado = await orders.consultar_pedido_por_id(pedido_id)
-    if not resultado or resultado.get("error"):
-        resultado = {"error": "PEDIDO_NO_ENCONTRADO", "pedido_id": pedido_id,
-                     "mensaje": f"No se encontró ningún pedido con ID {pedido_id!r}."}
-    await _log(perfil, "buscar_pedido_por_id", t0)
-    return _to_command(resultado, tool_call_id)
-
+# ─── Pedidos / documentos ────────────────────────────────────────────────────
 
 @tool
 async def consultar_pedidos(
@@ -162,9 +115,7 @@ async def consultar_pedidos(
     perfil = state["perfil"]
     args = {"cliente_ruc": cliente_ruc}
     denegado = await access.verificar_acceso_cartera("consultar_pedidos", args, perfil)
-    t0 = time.time()
     resultado = denegado or await orders.consultar_pedidos(args["cliente_ruc"], estado)
-    await _log(perfil, "consultar_pedidos", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -182,76 +133,7 @@ async def consultar_despacho(
             {"error": "FALTA_DATO", "mensaje": "Necesito el número de pedido o el número de factura para consultar el despacho."},
             tool_call_id,
         )
-    t0 = time.time()
     resultado = await orders.consultar_despacho(pedido_id=pedido_id, factura=factura)
-    await _log(perfil, "consultar_despacho", t0)
-    return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def consultar_credito(
-    cliente_ruc: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Consulta el límite de crédito, saldo usado y saldo disponible de un cliente. Solo para asesores comerciales."""
-    perfil = state["perfil"]
-    args = {"cliente_ruc": cliente_ruc}
-    denegado = await access.verificar_acceso_cartera("consultar_credito", args, perfil)
-    t0 = time.time()
-    resultado = denegado or await credit.consultar_credito(args["cliente_ruc"])
-    await _log(perfil, "consultar_credito", t0)
-    return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def consultar_cobranzas(
-    cliente_ruc: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-    estado: Optional[str] = None,
-) -> Command:
-    """Consulta las letras, facturas vencidas y deuda pendiente de un cliente. Usar para revisar estado de cobranza."""
-    perfil = state["perfil"]
-    args = {"cliente_ruc": cliente_ruc}
-    denegado = await access.verificar_acceso_cartera("consultar_cobranzas", args, perfil)
-    t0 = time.time()
-    resultado = denegado or await collections.consultar_cobranzas(args["cliente_ruc"], estado)
-    await _log(perfil, "consultar_cobranzas", t0)
-    return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def consultar_historial(
-    cliente_ruc: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-    meses: int = 18,
-) -> Command:
-    """Consulta el historial de compras de un cliente en los últimos N meses. Útil para ver tendencia y frecuencia de compra."""
-    perfil = state["perfil"]
-    args = {"cliente_ruc": cliente_ruc}
-    denegado = await access.verificar_acceso_cartera("consultar_historial", args, perfil)
-    t0 = time.time()
-    resultado = denegado or await credit.consultar_historial(args["cliente_ruc"], meses)
-    await _log(perfil, "consultar_historial", t0)
-    return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def obtener_documentos(
-    cliente_ruc: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-    tipo: Optional[str] = None,
-) -> Command:
-    """Obtiene facturas, guías de remisión y notas de crédito de un cliente."""
-    perfil = state["perfil"]
-    args = {"cliente_ruc": cliente_ruc}
-    denegado = await access.verificar_acceso_cartera("obtener_documentos", args, perfil)
-    t0 = time.time()
-    resultado = denegado or await documents.obtener_documentos(args["cliente_ruc"], tipo)
-    await _log(perfil, "obtener_documentos", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -267,9 +149,7 @@ async def consultar_cartera(
     """DEBES usar esta tool SIEMPRE que el asesor pregunte por sus clientes, su cartera o su lista de cuentas. Devuelve todos los clientes asignados a este asesor con razón social, tipo, estado, límite de crédito, saldo pendiente y último pedido. Dispárala ante frases como 'mis clientes', 'mi cartera', 'qué clientes tengo'. NO inventes ni resumas la cartera de memoria."""
     perfil = state["perfil"]
     vendedor_id = perfil.get("vendedor_id", "V001")
-    t0 = time.time()
     resultado = await cartera.consultar_cartera(vendedor_id, estado, tipo)
-    await _log(perfil, "consultar_cartera", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -283,9 +163,7 @@ async def consultar_perfil_cliente(
     perfil = state["perfil"]
     args = {"ruc": ruc}
     denegado = await access.verificar_acceso_cartera("consultar_perfil_cliente", args, perfil)
-    t0 = time.time()
     resultado = denegado or await cartera.consultar_perfil_cliente(args["ruc"])
-    await _log(perfil, "consultar_perfil_cliente", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -301,9 +179,7 @@ async def buscar_catalogo(
 ) -> Command:
     """Busca productos en el catálogo por nombre, categoría o placa/VIN del vehículo. Usar para encontrar repuestos, ver equivalencias o buscar productos compatibles."""
     perfil = state["perfil"]
-    t0 = time.time()
     resultado = await catalog_rag.buscar_catalogo(query, placa, vin)
-    await _log(perfil, "buscar_catalogo", t0)
     return _to_command(resultado, tool_call_id)
 
 
@@ -315,10 +191,8 @@ async def enviar_imagen_producto(
 ) -> Command:
     """Envía por WhatsApp la(s) FOTO(s) de un producto. Úsala SOLO cuando el vendedor pida la imagen, foto o ficha de un producto puntual (por su código SKU). La foto se manda automáticamente al chat como imagen; en tu respuesta de texto solo confírmale que se la enviaste."""
     perfil = state["perfil"]
-    t0 = time.time()
     resultado = await imagenes.obtener_imagenes(sku_code)
     if not resultado or resultado.get("error"):
-        await _log(perfil, "enviar_imagen_producto", t0)
         return _to_command(
             {"error": "SIN_IMAGEN", "mensaje": f"No encontré una foto del producto {sku_code} en el sistema."},
             tool_call_id,
@@ -332,7 +206,6 @@ async def enviar_imagen_producto(
             "caption": f"{nombre} — {sku_code}" if i == 0 else "",
             "filename": im.get("filename", f"{sku_code}.png"),
         })
-    await _log(perfil, "enviar_imagen_producto", t0)
     return _to_command(
         {"sku": sku_code, "nombre": nombre, "enviadas": len(media),
          "mensaje": f"Te envié {len(media)} foto(s) del producto {sku_code} al chat."},
@@ -354,10 +227,8 @@ async def enviar_documento(
     denegado = await access.verificar_acceso_cartera("enviar_documento", args, perfil)
     if denegado:
         return _to_command(denegado, tool_call_id)
-    t0 = time.time()
     resultado = await documents.enviar_documento(args["cliente_ruc"], numero_documento)
     if not resultado or resultado.get("error"):
-        await _log(perfil, "enviar_documento", t0)
         return _to_command(
             resultado or {"error": "SIN_DOCUMENTO",
                           "mensaje": f"No pude obtener el documento {numero_documento}."},
@@ -371,7 +242,6 @@ async def enviar_documento(
         "filename": resultado.get("filename", f"{numero}.pdf"),
         "mime": resultado.get("mime", "application/pdf"),
     }]
-    await _log(perfil, "enviar_documento", t0)
     return _to_command(
         {"numero": numero, "tipo": tipo, "cliente": resultado.get("cliente", ""),
          "mensaje": f"Te envié el PDF de {tipo} {numero} al chat."},
@@ -393,73 +263,11 @@ async def consultar_pago_documento(
     denegado = await access.verificar_acceso_cartera("consultar_pago_documento", args, perfil)
     if denegado:
         return _to_command(denegado, tool_call_id)
-    t0 = time.time()
     resultado = await documents.consultar_pago_documento(args["cliente_ruc"], numero_documento)
     if not resultado or resultado.get("error"):
         resultado = resultado or {"error": "SIN_DATO",
                                   "mensaje": f"No pude obtener el estado de pago de {numero_documento}."}
-    await _log(perfil, "consultar_pago_documento", t0)
     return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def identificar_vehiculo(
-    placa_o_vin: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Busca en el CATÁLOGO INTERNO los repuestos compatibles con un vehículo a partir de su placa o VIN (datos de catálogo, no oficiales). NO uses esta tool para saber 'qué auto es' una placa: para identificar el vehículo de una placa peruana usa consultar_placa_sunarp. Usa esta SOLO cuando ya sabes el vehículo y quieres ver qué repuestos le calzan."""
-    perfil = state["perfil"]
-    t0 = time.time()
-    resultado = await vehicle.identificar_vehiculo(placa_o_vin)
-    await _log(perfil, "identificar_vehiculo", t0)
-    return _to_command(resultado, tool_call_id)
-
-
-@tool
-async def consultar_placa_sunarp(
-    placa: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """ÚSALA SIEMPRE que pregunten qué vehículo es una placa peruana, a quién pertenece, o por los datos de un auto/moto por su placa (ej. '¿qué auto es la placa F9N562?', 'identifícame la placa ABC123'). Es la consulta OFICIAL en SUNARP en vivo y funciona para cualquier placa. Tarda 20-60s: avisa al usuario que estás consultando. El resultado trae los datos EN TEXTO en 'datos_vehiculo_texto'. SIEMPRE preséntale esos datos al usuario por escrito. La FOTO se envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónaselo)."""
-    perfil = state["perfil"]
-
-    # Kill switch: si SUNARP está caído, deshabilitar la consulta evita que el
-    # agente se cuelgue esperando y devuelve una respuesta inmediata.
-    # Activar con SUNARP_ENABLED=false en las env vars de Railway.
-    if os.getenv("SUNARP_ENABLED", "true").lower() != "true":
-        return _to_command({
-            "error": "SUNARP_DESHABILITADO",
-            "mensaje": (
-                "SUNARP no está disponible. "
-                "USA INMEDIATAMENTE la tool consultar_placa_yahuar con la misma placa. "
-                "No respondas al usuario todavía."
-            ),
-        }, tool_call_id)
-
-    t0 = time.time()
-    resultado = await vehicle.consultar_placa_sunarp(placa.strip().upper())
-
-    extra: dict = {}
-    if isinstance(resultado, dict) and resultado.get("imagen_base64"):
-        b64 = resultado.pop("imagen_base64")
-        placa_clean = (resultado.get("placa") or placa).strip()
-        resultado["tiene_imagen"] = True
-        try:
-            datos = await llm.extraer_texto_de_imagen(b64, _INSTRUCCION_TARJETA_VEHICULAR)
-            if datos:
-                resultado["datos_vehiculo_texto"] = datos
-        except Exception as e:
-            logging.error(f"Error visión SUNARP: {e}")
-        extra["media_pendiente"] = [{
-            "imagen_base64": b64,
-            "caption": f"Tarjeta de identificación vehicular — {placa_clean}",
-            "filename": f"placa_{placa_clean}.png",
-        }]
-
-    await _log(perfil, "consultar_placa_sunarp", t0)
-    return _to_command(resultado, tool_call_id, extra)
 
 
 # ─── Placa vía Yahuar (WhatsApp relay) ───────────────────────────────────────
@@ -478,13 +286,11 @@ async def consultar_placa_yahuar(
     perfil     = state["perfil"]
     from_field = perfil.get("from_field") or perfil.get("numero", "")
     placa_clean = placa.strip().upper()
-    t0 = time.time()
 
     # ── Modo async viejo (kill-switch YAHUAR_BLOQUEANTE=false) ─────────────────
     if not _YAHUAR_BLOQUEANTE:
         existente = await yahuar_mod.peek_pendiente()
         if existente:
-            await _log(perfil, "consultar_placa_yahuar", t0)
             return _to_command({
                 "placa": existente.get("placa", placa_clean),
                 "mensaje": "Ya hay una consulta de placa en proceso. La respuesta llegará en momentos al chat. NO vuelvas a llamar este tool.",
@@ -496,7 +302,6 @@ async def consultar_placa_yahuar(
         except Exception as e:
             logging.error(f"Error consultando Yahuar: {e}")
             resultado = {"error": "YAHUAR_ERROR", "mensaje": "No pude consultar la placa en este momento. Inténtalo de nuevo."}
-        await _log(perfil, "consultar_placa_yahuar", t0)
         return _to_command(resultado, tool_call_id)
 
     # ── Modo BLOQUEANTE (subagente): espera la respuesta y la devuelve limpia ──
@@ -515,35 +320,20 @@ async def consultar_placa_yahuar(
         }]
     resultado.pop("imagen_mime", None)
 
-    await _log(perfil, "consultar_placa_yahuar", t0)
     return _to_command(resultado, tool_call_id, extra)
 
 
 # ─── Solo clientes ────────────────────────────────────────────────────────────
-
-@tool
-async def registrar_reclamo(
-    pedido_id: str,
-    motivo: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Registra un reclamo o queja del cliente y genera un número de caso."""
-    perfil = state["perfil"]
-    conv_id = perfil.get("conversation_id", "mock")
-    t0 = time.time()
-    resultado = await claims.registrar_reclamo(conv_id, pedido_id, motivo)
-    await _log(perfil, "registrar_reclamo", t0)
-    return _to_command(resultado, tool_call_id)
 
 
 # ─── Toolsets por canal ───────────────────────────────────────────────────────
 
 # NOTA: al migrar del Mock SAP a la API real de Catusita (tools-agente-catusita),
 # se APAGARON las tools sin dato de origen real: buscar_pedido_por_id,
-# consultar_pedidos, consultar_credito, consultar_cobranzas, consultar_historial,
-# obtener_documentos e identificar_vehiculo. Sus @tool y wrappers en agents/ siguen
-# definidos pero NO se exponen al modelo. Ver docs/plan_migracion_api_real.md.
+# consultar_credito, consultar_cobranzas, consultar_historial, obtener_documentos
+# e identificar_vehiculo. Su código (y los wrappers en agents/) se eliminó; si la
+# API real llega a exponer esos datos hay que reescribirlas.
+# Ver docs/plan_migracion_api_real.md.
 TOOLS_VENDEDOR_LC = [
     consultar_stock,
     consultar_precio,
@@ -555,7 +345,6 @@ TOOLS_VENDEDOR_LC = [
     enviar_imagen_producto,
     enviar_documento,
     consultar_pago_documento,
-    consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]
 
@@ -564,6 +353,4 @@ TOOLS_CLIENTE_LC = [
     consultar_precio,
     buscar_catalogo,
     enviar_imagen_producto,
-    consultar_placa_sunarp,
-    registrar_reclamo,
 ]

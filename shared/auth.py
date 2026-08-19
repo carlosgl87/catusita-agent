@@ -617,26 +617,6 @@ _MOCK_ASESORES = {
     },
 }
 
-_MOCK_CLIENTES_RUC = {
-    "20512345678": {
-        "user_id": "cliente-001",
-        "tipo": "cliente",
-        "nombre": "Taller San Juan SRL",
-        "ruc": "20512345678",
-        "nivel_acceso": "basico",
-        "autenticado": True,
-    },
-    "20601234567": {
-        "user_id": "cliente-002",
-        "tipo": "cliente",
-        "nombre": "Auto Repuestos Lima SAC",
-        "ruc": "20601234567",
-        "nivel_acceso": "basico",
-        "autenticado": True,
-    },
-}
-
-
 def _asesor_sandbox(numero_whatsapp: str) -> dict:
     """Perfil de asesor por defecto para el sandbox: en Kapso quien escribe en el
     canal de vendedores ES un asesor de ventas, aunque su celular no esté en la
@@ -683,7 +663,7 @@ async def get_user_profile(numero_whatsapp: str, agente_tipo: str) -> dict:
 
     # Producción: consultar base de datos
     if agente_tipo == "vendedor":
-        user = await models.get_user_by_whatsapp(numero_whatsapp)
+        user = None  # la tabla `users` se retiró; el registro vive en _MOCK_ASESORES
         if not user:
             return {"autenticado": False, "tipo": "asesor",
                     "mensaje": "Tu número no está registrado. Contacta a tu supervisor."}
@@ -695,9 +675,3 @@ async def get_user_profile(numero_whatsapp: str, agente_tipo: str) -> dict:
             "numero_whatsapp": numero_whatsapp,
             "mensaje": "Bienvenido. Indícame tu RUC o número de pedido.",
         }
-
-
-async def identify_client_by_ruc(ruc: str) -> dict | None:
-    if USE_MOCK:
-        return _MOCK_CLIENTES_RUC.get(ruc)
-    return await models.get_user_by_ruc(ruc)

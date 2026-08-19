@@ -20,9 +20,9 @@ Sesiones: **Redis**
 El resto de este documento es la **especificación original de construcción** y describe varias
 cosas que hoy son distintas. Lo realmente implementado es:
 
-- **Canal: Kapso**, NO Evolution API. El webhook (`webhooks/whatsapp.py`) recibe eventos
+- **Canal: WAHA** (self-hosted). Kapso y Evolution API quedaron atrás. El webhook (`webhooks/whatsapp.py`) recibe eventos
   `whatsapp.message.received` de Kapso (payload en *batch*, firma HMAC-SHA256). El envío de
-  mensajes/imágenes es vía `shared/kapso.py`, no `shared/evolution.py`.
+  mensajes/imágenes es vía `shared/waha.py`.
 
 - **Orquestación: LangGraph** (rama `feat/langgraph`, activar con `USE_LANGGRAPH=true`).
   El grafo tiene 4 nodos: `pre_resolver → agente ⇄ tools → validar`. El fallback al router
@@ -100,12 +100,11 @@ catusita-agent/
 │   ├── sap_client.py          ← cliente único para todas las APIs SAP (mock en dev)
 │   ├── auth.py                ← autenticación por número WA, RUC o pedido
 │   ├── llm.py                 ← wrapper de Claude API
-│   ├── evolution.py           ← cliente de Evolution API para enviar mensajes
 │   └── email_client.py        ← envío de correos para derivaciones
 │
 ├── webhooks/
 │   ├── __init__.py
-│   └── whatsapp.py            ← recibe eventos de Evolution API
+│   └── whatsapp.py            ← recibe eventos de WAHA
 │
 ├── db/
 │   ├── __init__.py
@@ -124,12 +123,6 @@ catusita-agent/
 ```env
 # Claude API
 ANTHROPIC_API_KEY=sk-ant-...
-
-# Evolution API (WhatsApp)
-EVOLUTION_API_URL=https://evolution-api.up.railway.app
-EVOLUTION_API_KEY=catusita-secret-key-2024
-EVOLUTION_INSTANCE_VENDEDORES=catusita-vendedores
-EVOLUTION_INSTANCE_CLIENTES=catusita-clientes
 
 # PostgreSQL
 DATABASE_URL=postgresql://user:password@host:5432/catusita_db
@@ -624,8 +617,8 @@ async def clear_history(numero: str):
 @router.post("/webhook/whatsapp")
 async def webhook_whatsapp(request: Request):
     """
-    Recibe todos los eventos de Evolution API.
-    Filtrar solo MESSAGES_UPSERT y mensajes de texto entrantes.
+    Recibe todos los eventos del canal de WhatsApp.
+    Filtrar solo mensajes de texto entrantes.
     """
     data = await request.json()
 
@@ -650,7 +643,7 @@ async def webhook_whatsapp(request: Request):
     # 4. Autenticar al usuario
     perfil = await auth.get_user_profile(numero, agente_tipo)
     if not perfil["autenticado"]:
-        await evolution.send_message(numero, instance_name,
+        await whatsapp.send_message(numero,
             "Para continuar necesito verificar tu identidad. Por favor, ingresa tu RUC o número de pedido.")
         return {"status": "auth_required"}
 
@@ -665,33 +658,13 @@ async def webhook_whatsapp(request: Request):
     await context.save_message(numero, "assistant", respuesta)
 
     # 8. Enviar respuesta por WhatsApp
-    await evolution.send_message(numero, instance_name, respuesta)
+    await whatsapp.send_message(numero, respuesta)
 
     return {"status": "ok"}
 ```
 
 ---
 
-## Paso 8 — Cliente de Evolution API (`shared/evolution.py`)
-
-```python
-class EvolutionClient:
-    async def send_message(self, numero: str, instance: str, texto: str) -> dict:
-        """
-        POST {EVOLUTION_API_URL}/message/sendText/{instance}
-        Headers: { apikey: EVOLUTION_API_KEY }
-        Body: { number: "51{numero}", text: "{texto}" }
-        """
-
-    async def send_document(self, numero: str, instance: str,
-                             url: str, filename: str, caption: str = "") -> dict:
-        """
-        Para enviar PDFs y XMLs adjuntos
-        POST {EVOLUTION_API_URL}/message/sendMedia/{instance}
-        """
-```
-
----
 
 ## Paso 9 — main.py
 
@@ -724,8 +697,7 @@ Construir en este orden para poder probar en cada paso:
 3. `agents/stock.py` y `agents/prices.py` → los más simples
 4. `shared/llm.py` y `orchestrator/router.py` → el loop principal con solo stock y precios
 5. Probar el orquestador desde la terminal (sin WhatsApp todavía)
-6. `shared/evolution.py` → cliente de Evolution API
-7. `webhooks/whatsapp.py` → conectar con Evolution API y probar en WhatsApp real
+6. `webhooks/whatsapp.py` → conectar con el canal de WhatsApp y probar en real
 8. `shared/auth.py` y `orchestrator/context.py` → autenticación e historial
 9. Resto de agentes: `orders.py`, `credit.py`, `documents.py`, `catalog_rag.py`, `vehicle.py`, `collections.py`, `claims.py`
 
@@ -813,5 +785,5 @@ Construir en este orden para poder probar en cada paso:
 - **Historial**: mantener los últimos 10 mensajes en Redis para no exceder el context window de Claude
 - **Errores de SAP**: si la API SAP falla, responder "En este momento no puedo acceder a esa información. Inténtalo en unos minutos."
 - **Mensajes no-texto**: en v1, ignorar silenciosamente imágenes, audios y stickers
-- **URL de ngrok**: si se desarrolla localmente, la URL de ngrok cambia en cada reinicio — actualizarla en el webhook de Evolution API
+- **URL de ngrok**: si se desarrolla localmente, la URL de ngrok cambia en cada reinicio — actualizarla en el webhook del proveedor
 - **El .env nunca se sube a git** — asegurarse de que esté en .gitignore
