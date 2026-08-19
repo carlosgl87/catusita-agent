@@ -9,9 +9,9 @@ Es el mismo criterio que `agentes/*/backend.py`: la plomería (el pool) viene de
 
 ── Por qué devuelve el id ─────────────────────────────────────────────────────
 
-`guardar()` devuelve el UUID de la fila porque `solicitud_proceso_nuevo_vendedores`
-lo necesita como `mensaje_id`. Sin ese id no se puede abrir una solicitud
-apuntando al mensaje que la causó.
+`guardar()` devuelve el UUID de la fila para que cualquier cosa que quiera
+apuntar a un mensaje concreto —telemetría, análisis de conversaciones, una
+revisión posterior— pueda referenciarlo en vez de copiar número y texto.
 
 Y por eso el mensaje del usuario se guarda ANTES de correr el agente, no después
 como hacía webhooks/whatsapp.py: el id tiene que existir cuando el grafo corre.

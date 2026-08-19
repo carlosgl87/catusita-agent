@@ -39,7 +39,7 @@ import json
 import time
 import uuid
 
-VERSION = 2
+VERSION = 3
 
 
 def _id() -> str:
@@ -53,9 +53,22 @@ class Turno:
     Sale del acumulador, así que `texto` puede ser la unión de varios fragmentos
     que llegaron seguidos y `media` la de varias imágenes.
 
-    `perfil` viaja resuelto: lo hizo el router al decidir a qué cola va. El
-    worker NO re-autentica — si lo hiciera, un cambio en `auth` podría mandar el
-    turno a un multiagente y autenticarlo como el otro.
+    ── `perfil` viaja vacío ───────────────────────────────────────────────────
+
+    La recepción decide a QUÉ multiagente va el mensaje —con el padrón de
+    Redis— pero no sabe qué es un `vendedor_id`: no lee ninguna tabla. Quién es
+    este número lo resuelve cada worker contra su propio roster.
+
+    El campo queda igual porque es donde el worker lo escribe al armar el
+    estado, y porque el día que la recepción tenga algo que aportar (un alias,
+    el nombre que muestra WhatsApp) entra por acá sin cambiar el sobre.
+
+    ── `lock` ─────────────────────────────────────────────────────────────────
+
+    El token del lock de conversación, que la recepción tomó ANTES de reclamar
+    los fragmentos. Viaja hasta el Resultado y vuelve, y recién ahí se suelta:
+    la conversación queda tomada mientras el worker trabaja, así un segundo
+    mensaje no arranca una corrida encima de la primera.
     """
     conversacion: str            # el número, normalizado
     multiagente: str             # "vendedores" | "clientes" | "supervisores"
@@ -63,6 +76,7 @@ class Turno:
     perfil: dict
     media: list = field(default_factory=list)
     responder_a: str = ""        # from_field de WAHA (puede ser un @lid)
+    lock: str = ""               # token del lock de conversación
     id: str = field(default_factory=_id)
     ts: float = field(default_factory=time.time)
     version: int = VERSION
@@ -77,6 +91,10 @@ class Resultado:
 
     `ok=False` con `error` también se devuelve, a propósito. El usuario merece
     un «no pude»; el silencio es peor que un error.
+
+    `lock` vuelve tal cual vino en el Turno. El worker no lo mira: solo lo
+    devuelve para que la recepción libere la conversación cuando la respuesta
+    ya esté en el chat.
     """
     conversacion: str
     multiagente: str
@@ -84,6 +102,7 @@ class Resultado:
     texto: str = ""              # la respuesta redactada
     media: list = field(default_factory=list)
     responder_a: str = ""
+    lock: str = ""               # el que vino en el Turno, sin tocar
     tools: list = field(default_factory=list)   # para la telemetría del panel
     error: str = ""
     duracion_ms: int = 0

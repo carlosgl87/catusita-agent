@@ -173,7 +173,7 @@ async def _procesar_item(item: dict) -> dict:
     # ----------------------------------------------------------------------
     # id de correlación para los logs; la conversación se agrupa por session_id
     conversation_id = _session_id(numero)
-    # Datos de envío para que las tools puedan encolar media (ej. foto SUNARP)
+    # Datos de envío para que las tools puedan encolar media (ej. foto de placa)
     perfil["numero"] = numero
     perfil["phone_number_id"] = phone_number_id
 
@@ -201,7 +201,7 @@ async def _procesar_item(item: dict) -> dict:
         print(f"[WEBHOOK] ERROR enviando a WhatsApp: {e}")
 
     # ----------------------------------------------------------------------
-    # Enviar media encolada por las tools (ej. foto de la tarjeta SUNARP)
+    # Enviar media encolada por las tools (ej. foto de la tarjeta vehicular)
     # ----------------------------------------------------------------------
     for media in media_list:
         try:
@@ -278,7 +278,7 @@ async def webhook_whatsapp(request: Request):
     # ----------------------------------------------------------------------
     # [2.5] IDEMPOTENCIA: si Kapso reenvía el mismo webhook (porque tardamos
     #       en responderle el 200), NO lo reprocesamos. Sin esto, una consulta
-    #       lenta (ej. SUNARP caído) hace que Kapso reintente y cada reintento
+    #       lenta (ej. la consulta de placa) hace que Kapso reintente y cada reintento
     #       dispare otra ejecución del agente → decenas de respuestas repetidas.
     # ----------------------------------------------------------------------
     if idempotency_key and await context.ya_procesado(idempotency_key):
@@ -297,7 +297,7 @@ async def webhook_whatsapp(request: Request):
     # [4] ACK INMEDIATO + procesamiento en segundo plano.
     #
     #     Kapso espera el 200 OK en pocos segundos; si tardamos (porque el
-    #     agente llama una tool lenta, ej. SUNARP), Kapso da por fallida la
+    #     agente llama una tool lenta, ej. la consulta de placa), Kapso da por fallida la
     #     entrega y REENVÍA el webhook → cada reenvío genera otra respuesta
     #     al usuario (el spam que veíamos). La solución correcta es responder
     #     200 al instante y hacer el trabajo del agente aparte, de modo que
@@ -549,7 +549,7 @@ _ACLARACION_YAHUAR = (
 )
 
 _INSTRUCCION_PLACA = (
-    "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
+    "Esta es la foto de una Tarjeta de Identificación Vehicular peruana. "
     "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles: "
     "placa, marca, modelo, año de fabricación, color, número de serie/VIN, número de motor, "
     "categoría, combustible y propietario(s) si aparecen. "

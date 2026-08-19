@@ -28,14 +28,20 @@ en proceso con el que el orquestador coordina. Ver plataforma/colas.py.
     catusita-supervisores   worker supervisores  grafo de supervisores
 
 Un proceso por multiagente atiende todas sus conversaciones. En asyncio eso no
-las serializa: un `await` de 60 s contra SUNARP no bloquea el event loop.
+las serializa: un `await` de 60 s contra la consulta de placas no bloquea el
+event loop.
 """
 import asyncio
 import importlib
 import logging
+import os
 import time
 
+from langchain_core.messages import AIMessage, HumanMessage
+
 from vendedores.plataforma_vendedores import colas
+from vendedores.plataforma_vendedores import db
+from vendedores.plataforma_vendedores.nodos import contexto
 from vendedores.plataforma_vendedores import padron
 from vendedores.plataforma_vendedores import redis as redis_mod
 from vendedores.plataforma_vendedores.contrato import (
@@ -46,6 +52,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # El BRPOP se despierta cada tanto para poder atender un apagado. No es polling.
 BLOQUEO = 5
+
+MULTIAGENTE = "vendedores"
+
+# Cada delegación son dos pasos (orquestador -> área -> orquestador).
+# Es el freno para que un loop de delegaciones no queme la API key.
+RECURSION_LIMITE = int(os.getenv("LANGGRAPH_RECURSION_LIMIT", "20"))
 
 
 def cargar_grafo():
@@ -118,9 +130,14 @@ async def correr() -> None:
             logging.exception(f"turno {turno.conversacion} falló: {e}")
             # El error vuelve igual. El usuario merece un "no pude"; el silencio
             # es peor que un error.
+            #
+            # `lock` y `responder_a` van también en esta rama: sin el lock, la
+            # conversación quedaría tomada hasta que venza el TTL y el usuario
+            # no podría volver a escribir en tres minutos.
             res = Resultado(
-                conversacion=turno.conversacion, multiagente="vendedores",
+                conversacion=turno.conversacion, multiagente=MULTIAGENTE,
                 ok=False, error=str(e),
+                responder_a=turno.responder_a, lock=turno.lock,
             )
         res.duracion_ms = int((time.time() - t0) * 1000)
         await r.lpush(colas.COLA_RESPUESTAS, empacar(res))
@@ -139,14 +156,135 @@ async def _republicar() -> None:
             logging.error(f"[padron] republicación falló: {e}")
 
 
-async def _correr_turno(grafo, turno) -> Resultado:
-    """Corre el grafo completo para un turno.
+async def _perfil(numero: str) -> dict:
+    """Quién es este número, según MI roster. No lo resuelve la recepción.
 
-    TODO: invocar `grafo.ainvoke()` con el EstadoAgente armado desde el turno
-    (conversacion, perfil, messages) y sacar de la salida la respuesta y la
-    media pendiente. Depende de que los subgrafos de las áreas estén compilados.
+    La recepción decide a QUÉ multiagente va un mensaje —con el padrón de
+    Redis— pero no sabe qué es un `vendedor_id`: no lee ninguna tabla. El perfil
+    completo lo arma cada worker desde su propio roster.
+
+    Que devuelva `autenticado: False` no es un error: significa que el padrón de
+    Redis quedó viejo y mandó acá a alguien que ya no está en el roster. El
+    orquestador lo trata como cualquier otro dato del turno.
     """
-    raise NotImplementedError
+    pool = await db.get()
+    async with pool.acquire() as c:
+        f = await c.fetchrow(
+            """SELECT vendedor_id, codigo, nombre FROM vendedores
+                WHERE activo AND whatsapp = $1""", numero)
+    if not f:
+        return {"tipo": "asesor", "autenticado": False, "numero": numero}
+    return {"tipo": "asesor", "autenticado": True, "numero": numero,
+            "vendedor_id": f["vendedor_id"], "asesor_id": f["codigo"],
+            "nombre": f["nombre"]}
+
+
+# Lo que la API de Anthropic acepta como imagen. Un mimetype fuera de esta lista
+# no se adjunta: mandarlo igual haría fallar el turno completo por una foto.
+IMAGENES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
+
+def _mensaje_del_usuario(turno):
+    """El turno como lo ve el modelo: texto, y las fotos que mandó el usuario.
+
+    Recepción ya bajó los bytes al cerrar el turno (la URL de WAHA es efímera y
+    a esta altura probablemente ya caducó), así que acá solo hay que armarlos en
+    bloques de contenido.
+
+    Sin esto, un asesor que fotografía la pieza que tiene en la mano —que es
+    justo lo que hace cuando no sabe el código— recibe una respuesta escrita
+    como si no hubiera mandado nada.
+
+    Si no hay imágenes válidas, el contenido queda como string. No es cosmético:
+    un turno de solo texto no debería pagar el formato multimodal.
+    """
+    adjuntos = [
+        {"type": "image", "source": {
+            "type": "base64",
+            "media_type": (m.get("mimetype") or "").split(";")[0].strip(),
+            "data": m["bytes_b64"],
+        }}
+        for m in (turno.media or [])
+        if m.get("bytes_b64")
+        and (m.get("mimetype") or "").split(";")[0].strip() in IMAGENES
+    ]
+    if not adjuntos:
+        return HumanMessage(content=turno.texto)
+
+    descartados = len(turno.media or []) - len(adjuntos)
+    if descartados:
+        logging.warning(f"[media] {descartados} adjunto(s) del usuario sin formato usable")
+
+    # El texto va PRIMERO: es lo que le da sentido a la foto («¿este me sirve
+    # para un Corolla?»). Al revés el modelo describe la imagen y recién después
+    # se entera de qué le preguntaron.
+    return HumanMessage(content=[{"type": "text", "text": turno.texto or " "}] + adjuntos)
+
+
+async def _correr_turno(grafo, turno) -> Resultado:
+    """Corre el grafo entero para un turno y arma la respuesta.
+
+    ── Qué entra al estado ────────────────────────────────────────────────────
+
+    El mensaje del usuario como HumanMessage, y nada más en `messages`. El
+    historial va aparte (`historial`) porque el orquestador lo antepone al
+    system, mientras que `messages` es lo que pasa DENTRO de este turno — lo que
+    las áreas van escribiendo mientras trabajan.
+
+    Mezclarlos haría que `validar` viera los turnos viejos como si fueran parte
+    de este y contara tools que se usaron ayer.
+
+    ── El recursion_limit ─────────────────────────────────────────────────────
+
+    Cada delegación son dos pasos (orquestador -> área -> orquestador). Con seis
+    áreas y algún reintento de validación, 20 alcanza de sobra. Es el freno para
+    que un loop de delegaciones no queme la API key.
+    """
+    numero = turno.conversacion
+    perfil = await _perfil(numero)
+
+    estado = {
+        "messages": [_mensaje_del_usuario(turno)],
+        "conversacion": numero,
+        "perfil": perfil,
+        # Los llena `contexto`, que es el primer nodo del grafo. Van vacíos y no
+        # ausentes: un `state.get()` sobre una clave que nunca existió y sobre
+        # una vacía se ven igual, pero el TypedDict declara las dos.
+        "historial": [],
+        "procesos": [],
+        "resuelto": {},
+        "media_pendiente": [],
+        "validacion": {},
+        "intentos_validacion": 0,
+    }
+
+    final = await grafo.ainvoke(estado, {"recursion_limit": RECURSION_LIMITE})
+
+    mensajes = final.get("messages") or []
+    texto = ""
+    for m in reversed(mensajes):
+        if isinstance(m, AIMessage) and m.content:
+            texto = m.content if isinstance(m.content, str) else str(m.content)
+            break
+
+    tools = [tc.get("name", "") for m in mensajes if isinstance(m, AIMessage)
+             for tc in (getattr(m, "tool_calls", None) or [])]
+
+    await contexto.guardar(numero, "user", turno.texto)
+    if texto:
+        await contexto.guardar(numero, "assistant", texto)
+
+    return Resultado(
+        conversacion=numero,
+        multiagente=MULTIAGENTE,
+        ok=bool(texto),
+        texto=texto,
+        media=final.get("media_pendiente") or [],
+        responder_a=turno.responder_a,
+        lock=turno.lock,
+        tools=tools,
+        error="" if texto else "el grafo terminó sin respuesta",
+    )
 
 
 def main() -> None:

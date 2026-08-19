@@ -30,8 +30,9 @@ TABLA = "chat_messages_vendedores"
 #     supervisores/chat.py::guardar()   -> chat_messages_supervisores
 #
 # Tener el INSERT acá era justamente lo que hacía que los tres escribieran en la
-# misma tabla. Y las de allá devuelven el id de la fila, que hace falta para
-# `solicitud_proceso_nuevo_*.mensaje_id`.
+# misma tabla. Y las de allá devuelven el id de la fila, para que lo que quiera
+# apuntar a un mensaje concreto —telemetría, análisis de conversaciones— pueda
+# referenciarlo en vez de copiar número y texto.
 
 
 # ─── Roster de vendedores ─────────────────────────────────────────────────────
