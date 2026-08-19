@@ -106,7 +106,16 @@ async def correr() -> None:
 
     r = await redis_mod.get()
     while True:
-        item = await r.brpop([cola], timeout=BLOQUEO)
+        # Un traspié de Redis no puede matar al worker. Sin este try, un
+        # TimeoutError tumba el proceso, Railway lo reinicia, vuelve a caerse:
+        # un crash-loop que se ve como "el agente no responde" y que en los
+        # logs aparece como un traceback de red, no como un problema del agente.
+        try:
+            item = await r.brpop([cola], timeout=BLOQUEO)
+        except Exception as e:
+            logging.error(f"[cola] Redis no respondio: {e}")
+            await asyncio.sleep(2)
+            continue
         if item is None:
             continue
         _, crudo = item
