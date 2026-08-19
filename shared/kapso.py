@@ -1,7 +1,7 @@
 """
 Cliente para Kapso (WhatsApp Cloud API oficial vía Meta).
 
-Reemplaza a shared/evolution.py manteniendo una interfaz compatible
+Cliente de WhatsApp vía Kapso (Cloud API oficial de Meta)
 (send_message / send_document) para que el resto del código no cambie.
 
 Docs: https://docs.kapso.ai
@@ -84,7 +84,7 @@ class KapsoClient:
 
         Args:
             numero: destinatario (con o sin 51 al inicio, con o sin @s.whatsapp.net).
-            instance: ignorado (compat con la interfaz de EvolutionClient).
+            instance: ignorado (Kapso enruta por phone_number_id).
             texto: contenido a enviar.
         """
         numero_clean = _normalizar_numero(numero)

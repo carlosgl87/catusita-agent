@@ -4,9 +4,9 @@ Garantiza que un asesor solo pueda consultar clientes de SU cartera, y resuelve
 nombres parciales a RUC. Esto NO se deja al system prompt: se valida en código
 antes de tocar el Mock SAP.
 
-`verificar_acceso_cartera` es el punto de entrada que usa router.execute_tool:
-devuelve un dict de error si debe bloquearse, o None si la tool puede ejecutarse
-(habiendo normalizado, de paso, el RUC dentro de `args`).
+`verificar_acceso_cartera` es el punto de entrada que usan las @tool de
+orchestrator/lc_tools.py: devuelve un dict de error si debe bloquearse, o None
+si la tool puede ejecutarse (habiendo normalizado, de paso, el RUC en `args`).
 """
 from agents import cartera
 

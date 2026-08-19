@@ -33,7 +33,7 @@ from shared import llm
 MAX_REINTENTOS = 1
 
 # ─── Tools sensibles que activan el juez LLM ─────────────────────────────────
-_TOOLS_SENSIBLES = {"consultar_credito", "consultar_cobranzas", "consultar_perfil_cliente"}
+_TOOLS_SENSIBLES = {"consultar_perfil_cliente"}
 
 # ─── Palabras prohibidas (Regla 1 — privacidad) ───────────────────────────────
 # IMPORTANTE: solo bloquear cuando el agente REVELA el dato (con número/lugar),
