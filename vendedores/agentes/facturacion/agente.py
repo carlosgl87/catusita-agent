@@ -1,20 +1,49 @@
 """Subgrafo de `facturacion` (vendedores).
 
-Nodo del grafo de Vendedores, con estado propio. Sus mensajes internos no
-suben al historial: al orquestador solo le llega el resultado.
+    (entra del orquestador) -> agente ⇄ tools -> (vuelve al orquestador)
 
 Salidas permitidas (las fuerza vendedores/grafo.py):
-  - SOLO vuelve a `supervisor`
+  - SOLO vuelve al orquestador
   - NO va a otra área
   - NO va a END: toda respuesta pasa por `validar`
 
-Si le falta un dato de otra área NO la llama: termina su turno
-diciendo qué necesita, y el orquestador decide.
-
-    falta cuando le dan un RUC pero no el N° de documento
-      -> lo tiene `pedidos`
+Comparte EstadoAgente con el padre para poder escribir `messages` —que el
+orquestador vea qué se consultó, sin que el área se lo resuma— y
+`media_pendiente`, que el worker manda al final del turno.
 """
-from vendedores.agentes.facturacion.prompt import SYSTEM  # noqa: F401
-from vendedores.agentes.facturacion.tools import TOOLS  # noqa: F401
+import os
 
-NODO = None  # TODO: StateGraph propio, compilado con MODELO y TOOLS
+from langchain_anthropic import ChatAnthropic
+from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode, tools_condition
+
+from vendedores.agentes.facturacion.prompt import SYSTEM
+from vendedores.agentes.facturacion.tools import TOOLS
+from vendedores.plataforma_vendedores.estado import EstadoAgente
+
+MODELO = "claude-haiku-4-5-20251001"
+
+LIMITE_PASOS = int(os.getenv("LIMITE_PASOS_AREA", "6"))
+
+_llm = ChatAnthropic(model=MODELO, temperature=0).bind_tools(TOOLS)
+
+
+async def _nodo_agente(state: EstadoAgente) -> dict:
+    respuesta = await _llm.ainvoke(
+        [{"role": "system", "content": SYSTEM}] + state["messages"]
+    )
+    return {"messages": [respuesta]}
+
+
+def construir() -> StateGraph:
+    g = StateGraph(EstadoAgente)
+    g.add_node("agente", _nodo_agente)
+    g.add_node("tools", ToolNode(TOOLS))
+    g.set_entry_point("agente")
+    # END acá es el final del SUBGRAFO, no del turno.
+    g.add_conditional_edges("agente", tools_condition, {"tools": "tools", END: END})
+    g.add_edge("tools", "agente")
+    return g
+
+
+NODO = construir().compile()

@@ -1,26 +1,20 @@
-"""Área `pedidos` de Vendedores — Pedidos y despacho.
+"""Área `pedidos` de Vendedores.
 
 Contesta: ¿Dónde está el pedido y ya llegó?
-Entidad:  pedido / factura
 
-    EXPONE datos sensibles:
-      - pedidos de cualquier cliente de la cartera
+CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `backend`, `servicio`,
+`prompt` ni `agente` desde afuera.
 
-CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `servicio`, `backend`,
-`prompt` ni `agente` desde afuera, y nada de Vendedores importa código de
-Clientes.
-
-No le habla a ninguna otra área. Si le falta un dato, se lo pide al orquestador.
-
-    Datos de otras áreas que puede necesitar:
-      (se basta con lo suyo)
+No le habla a ninguna otra área. Si le falta un dato, vuelve al orquestador.
 """
-from vendedores.agentes.pedidos.agente import NODO
+from vendedores.agentes.pedidos.agente import NODO, MODELO
 from vendedores.agentes.pedidos.tools import TOOLS
 
-# encadena dos consultas deterministas
-MODELO = "claude-haiku-4-5-20251001"
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el área y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Qué pidió un cliente y en qué va el despacho: estado, guía de remisión, si ya se entregó."
+)
 
-# lookup contra el backend, responde en segundos
-
-__all__ = ["MODELO", "NODO", "TOOLS"]
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

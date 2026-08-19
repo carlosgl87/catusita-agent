@@ -20,7 +20,7 @@ class SAPClient:
         """Helper para GET con manejo de errores uniforme.
 
         `timeout` permite sobreescribir el timeout por defecto del cliente
-        (útil para endpoints lentos como la consulta de placas en SUNARP).
+        (útil para endpoints lentos).
         """
         try:
             kwargs = {"params": params}
@@ -85,18 +85,8 @@ class SAPClient:
 
     async def get_vehiculo(self, placa_o_vin: str) -> dict:
         """Datos de catálogo de un vehículo por placa/VIN. Lo usa el buscador
-        para filtrar repuestos compatibles (no es la consulta oficial SUNARP)."""
+        para filtrar repuestos compatibles."""
         return await self._get(f"/vehiculo/{placa_o_vin}")
-
-    async def get_placa(self, placa: str, imagen: bool = False) -> dict:
-        """Consulta oficial en SUNARP por placa.
-
-        Latencia alta (~20-60s, abre un navegador real), por eso usa un
-        timeout largo. Por defecto NO pide la imagen (imagen=false) para no
-        traer ~150 KB de base64 innecesarios.
-        """
-        params = {"imagen": str(imagen).lower()}
-        return await self._get(f"/placas/{placa}", params=params, timeout=120.0)
 
     async def get_catalogo(self, q: str = None, categoria: str = None,
                             marca: str = None, con_stock: bool = None) -> dict:

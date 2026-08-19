@@ -1,27 +1,20 @@
-"""Área `clientes` de Vendedores — Clientes y cartera.
+"""Área `clientes` de Vendedores.
 
 Contesta: ¿Quién es este cliente y está en mi cartera?
-Entidad:  RUC
 
-    EXPONE datos sensibles:
-      - cartera completa del asesor
-      - datos comerciales del cliente
+CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `backend`, `servicio`,
+`prompt` ni `agente` desde afuera.
 
-CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `servicio`, `backend`,
-`prompt` ni `agente` desde afuera, y nada de Vendedores importa código de
-Clientes.
-
-No le habla a ninguna otra área. Si le falta un dato, se lo pide al orquestador.
-
-    Datos de otras áreas que puede necesitar:
-      (se basta con lo suyo)
+No le habla a ninguna otra área. Si le falta un dato, vuelve al orquestador.
 """
-from vendedores.agentes.clientes.agente import NODO
+from vendedores.agentes.clientes.agente import NODO, MODELO
 from vendedores.agentes.clientes.tools import TOOLS
 
-# resolución de entidades sobre una lista acotada
-MODELO = "claude-haiku-4-5-20251001"
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el área y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Quién es un cliente y si está en la cartera del asesor. También la lista completa de su cartera."
+)
 
-# lookup contra el backend, responde en segundos
-
-__all__ = ["MODELO", "NODO", "TOOLS"]
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

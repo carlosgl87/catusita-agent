@@ -1,27 +1,20 @@
-"""Área `vehiculos` de Vendedores — Vehículos.
+"""Área `vehiculos` de Vendedores.
 
 Contesta: ¿Qué auto es esta placa?
-Entidad:  placa / VIN
 
-    EXPONE datos sensibles:
-      - propietario registral del vehículo
-      - partidas registrales
+CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `backend`, `servicio`,
+`prompt` ni `agente` desde afuera.
 
-CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `servicio`, `backend`,
-`prompt` ni `agente` desde afuera, y nada de Vendedores importa código de
-Clientes.
-
-No le habla a ninguna otra área. Si le falta un dato, se lo pide al orquestador.
-
-    Datos de otras áreas que puede necesitar:
-      (se basta con lo suyo)
+No le habla a ninguna otra área. Si le falta un dato, vuelve al orquestador.
 """
-from vendedores.agentes.vehiculos.agente import NODO
+from vendedores.agentes.vehiculos.agente import NODO, MODELO
 from vendedores.agentes.vehiculos.tools import TOOLS
 
-# lee con visión la tarjeta de identificación vehicular
-MODELO = "claude-sonnet-5"
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el área y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Qué vehículo es una placa peruana: marca, modelo, año, VIN y motor. TARDA 30-60 SEGUNDOS."
+)
 
-# SUNARP tarda 20-60s y se cuelga; YAHUAR es un relay bloqueante
-
-__all__ = ["MODELO", "NODO", "TOOLS"]
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

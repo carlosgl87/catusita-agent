@@ -1,26 +1,20 @@
-"""Área `facturacion` de Vendedores — Facturación.
+"""Área `facturacion` de Vendedores.
 
-Contesta: ¿Está pagada? Mándame el PDF.
-Entidad:  documento
+Contesta: ¿Está pagada? Mandame el PDF.
 
-    EXPONE datos sensibles:
-      - estado de deuda y letras de un documento
+CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `backend`, `servicio`,
+`prompt` ni `agente` desde afuera.
 
-CONTRATO PÚBLICO: MODELO, NODO, TOOLS. Nadie importa `servicio`, `backend`,
-`prompt` ni `agente` desde afuera, y nada de Vendedores importa código de
-Clientes.
-
-No le habla a ninguna otra área. Si le falta un dato, se lo pide al orquestador.
-
-    Datos de otras áreas que puede necesitar:
-      - `pedidos` — cuando le dan un RUC pero no el N° de documento
+No le habla a ninguna otra área. Si le falta un dato, vuelve al orquestador.
 """
-from vendedores.agentes.facturacion.agente import NODO
+from vendedores.agentes.facturacion.agente import NODO, MODELO
 from vendedores.agentes.facturacion.tools import TOOLS
 
-# lookup de documento y formateo
-MODELO = "claude-haiku-4-5-20251001"
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el área y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Facturas y notas de crédito: bajar el PDF, o saber si están pagadas y cómo."
+)
 
-# lookup contra el backend, responde en segundos
-
-__all__ = ["MODELO", "NODO", "TOOLS"]
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

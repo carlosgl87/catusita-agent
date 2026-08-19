@@ -22,20 +22,10 @@ from langgraph.types import Command
 
 from agents import (
     stock, prices, orders, documents,
-    catalog_rag, vehicle, cartera, imagenes,
+    catalog_rag, cartera, imagenes,
 )
 from orchestrator import access
 from shared import llm
-
-
-_INSTRUCCION_TARJETA_VEHICULAR = (
-    "Esta es la foto de una Tarjeta de Identificación Vehicular de SUNARP (Perú). "
-    "Extrae y devuelve EN TEXTO, como lista clave: valor, todos los datos legibles del "
-    "vehículo: placa, marca, modelo, año de fabricación, color, número de serie/VIN, "
-    "número de motor, categoría o clase, combustible y propietario(s) si aparecen. "
-    "Usa exactamente los valores que ves, no inventes. Si un campo no se lee, omítelo. "
-    "No agregues comentarios ni explicaciones: solo los datos."
-)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -280,50 +270,6 @@ async def consultar_pago_documento(
     return _to_command(resultado, tool_call_id)
 
 
-@tool
-async def consultar_placa_sunarp(
-    placa: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """ÚSALA SIEMPRE que pregunten qué vehículo es una placa peruana, a quién pertenece, o por los datos de un auto/moto por su placa (ej. '¿qué auto es la placa F9N562?', 'identifícame la placa ABC123'). Es la consulta OFICIAL en SUNARP en vivo y funciona para cualquier placa. Tarda 20-60s: avisa al usuario que estás consultando. El resultado trae los datos EN TEXTO en 'datos_vehiculo_texto'. SIEMPRE preséntale esos datos al usuario por escrito. La FOTO se envía automáticamente por WhatsApp (cuando 'tiene_imagen' es true, menciónaselo)."""
-    perfil = state["perfil"]
-
-    # Kill switch: si SUNARP está caído, deshabilitar la consulta evita que el
-    # agente se cuelgue esperando y devuelve una respuesta inmediata.
-    # Activar con SUNARP_ENABLED=false en las env vars de Railway.
-    if os.getenv("SUNARP_ENABLED", "true").lower() != "true":
-        return _to_command({
-            "error": "SUNARP_DESHABILITADO",
-            "mensaje": (
-                "SUNARP no está disponible. "
-                "USA INMEDIATAMENTE la tool consultar_placa_yahuar con la misma placa. "
-                "No respondas al usuario todavía."
-            ),
-        }, tool_call_id)
-
-    resultado = await vehicle.consultar_placa_sunarp(placa.strip().upper())
-
-    extra: dict = {}
-    if isinstance(resultado, dict) and resultado.get("imagen_base64"):
-        b64 = resultado.pop("imagen_base64")
-        placa_clean = (resultado.get("placa") or placa).strip()
-        resultado["tiene_imagen"] = True
-        try:
-            datos = await llm.extraer_texto_de_imagen(b64, _INSTRUCCION_TARJETA_VEHICULAR)
-            if datos:
-                resultado["datos_vehiculo_texto"] = datos
-        except Exception as e:
-            logging.error(f"Error visión SUNARP: {e}")
-        extra["media_pendiente"] = [{
-            "imagen_base64": b64,
-            "caption": f"Tarjeta de identificación vehicular — {placa_clean}",
-            "filename": f"placa_{placa_clean}.png",
-        }]
-
-    return _to_command(resultado, tool_call_id, extra)
-
-
 # ─── Placa vía Yahuar (WhatsApp relay) ───────────────────────────────────────
 
 _YAHUAR_BLOQUEANTE = os.getenv("YAHUAR_BLOQUEANTE", "true").lower() == "true"
@@ -399,7 +345,6 @@ TOOLS_VENDEDOR_LC = [
     enviar_imagen_producto,
     enviar_documento,
     consultar_pago_documento,
-    consultar_placa_sunarp,
     consultar_placa_yahuar,
 ]
 
@@ -408,5 +353,4 @@ TOOLS_CLIENTE_LC = [
     consultar_precio,
     buscar_catalogo,
     enviar_imagen_producto,
-    consultar_placa_sunarp,
 ]

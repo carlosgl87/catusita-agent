@@ -34,8 +34,7 @@ async def extraer_texto_de_imagen(
 ) -> str:
     """Lee una imagen con la visión de Claude y devuelve el texto extraído.
 
-    Se usa para volcar a texto los datos que SUNARP solo entrega dentro de la
-    foto de la tarjeta de identificación vehicular (marca, modelo, año, VIN, etc.).
+    Se usa para volcar a texto datos que solo llegan dentro de una foto.
     """
     response = await _client.messages.create(
         model=MODEL,
