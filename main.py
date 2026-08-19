@@ -28,18 +28,24 @@ async def lifespan(app: FastAPI):
     # Solo inicializar DB si DATABASE_URL está configurado
     if os.getenv("DATABASE_URL"):
         from db.connection import close_db
-        from plataforma import db as pdb
 
-        # Corredor con registro (plataforma/db), no el init_db() viejo. Aquel
-        # reejecutaba TODAS las migraciones en cada arranque: las tablas que se
-        # dropeaban a mano volvían solas en el siguiente deploy, sin avisar.
-        corridas = await pdb.migrar()
-        if corridas:
-            logging.info(f"migraciones aplicadas al arrancar: {corridas}")
-
+        # ── Acá NO se corren migraciones ──────────────────────────────────────
+        #
+        # Antes se corrían al arrancar, y era un error de dos formas:
+        #
+        #   el init_db() original reejecutaba TODAS en cada arranque. Las tablas
+        #   que se dropeaban a mano volvían solas en el siguiente deploy, sin
+        #   avisar — `users`, `conversations`, `messages` y `claims` habrían
+        #   reaparecido.
+        #
+        #   el corredor que lo reemplazó llevaba registro, pero apuntaba a una
+        #   ruta que no existe: corría cero migraciones en silencio.
+        #
+        # Los `.sql` de `db/migrations/` se aplican a mano, desde desarrollo,
+        # cuando se decide cambiar el esquema. La 009 dropeó tres tablas: eso se
+        # corre mirando el resultado, no como efecto de reiniciar un contenedor.
         await _sync_vendedores()
         yield
-        await pdb.close()
         await close_db()
     else:
         yield
