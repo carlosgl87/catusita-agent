@@ -34,7 +34,7 @@ resuelve y cómo se entrega la respuesta. Por ejemplo:
 
     «si el repuesto está descontinuado, ofrecer el equivalente y avisar a compras»
     «una devolución pasados 30 días necesita visto bueno del supervisor»
-    «si SUNARP no responde, pedirle al cliente la tarjeta de propiedad»
+    «si la consulta de placa no responde, pedirle la tarjeta de propiedad»
 
 La diferencia con las demás áreas: `pedidos` sabe DÓNDE está el pedido; esta
 sabe QUÉ HACER cuando llegó roto. Una trae el dato, la otra el procedimiento.
@@ -67,11 +67,16 @@ Es un área propia justamente para que esto crezca sin tocar nada más:
 Cada uno es un paso dentro de `servicio.py`. El contrato con el orquestador
 —entra una consulta, salen documentos— no cambia con ninguno.
 """
-from vendedores.agentes.conocimiento.agente import NODO
+from vendedores.agentes.conocimiento.agente import NODO, MODELO
 from vendedores.agentes.conocimiento.tools import TOOLS
 
-# Chico: hoy solo formatea lo que devuelve la búsqueda.
-MODELO = "claude-haiku-4-5-20251001"
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el área y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Cómo se hace algo en Catusita. Usala cuando la consulta no caiga en ninguna de las otras áreas."
+)
 
 
-__all__ = ["MODELO", "NODO", "TOOLS"]
+
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]
