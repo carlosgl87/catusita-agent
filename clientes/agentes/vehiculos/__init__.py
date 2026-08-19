@@ -22,6 +22,13 @@ from clientes.agentes.vehiculos.tools import TOOLS
 # lee con visión la tarjeta vehicular
 MODELO = "claude-sonnet-5"
 
-# SUNARP tarda 20-60s y se cuelga
+# la consulta de placa tarda 30-60s
 
-__all__ = ["MODELO", "NODO", "TOOLS"]
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el ÁREA y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Qué vehículo es una placa peruana: marca, modelo, año, VIN y motor. TARDA 30-60 SEGUNDOS."
+)
+
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

@@ -23,4 +23,11 @@ MODELO = "claude-haiku-4-5-20251001"
 
 # lookup contra el backend, responde en segundos
 
-__all__ = ["MODELO", "NODO", "TOOLS"]
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el ÁREA y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Reclamos, devoluciones y garantías sobre algo que el cliente ya compró."
+)
+
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]

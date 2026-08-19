@@ -59,8 +59,7 @@ async def texto_de_imagen(
 ) -> str:
     """Lee una imagen con visión y devuelve el texto extraído.
 
-    Existe porque SUNARP entrega marca, modelo, año y VIN únicamente dentro de la
-    foto de la tarjeta de identificación vehicular — no hay campo que consultar.
+    Se usa para volcar a texto datos que solo llegan dentro de una foto.
     """
     r = await _get().messages.create(
         model=MODELO,

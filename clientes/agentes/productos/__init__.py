@@ -16,12 +16,17 @@ No le habla a ninguna otra área. Si le falta un dato, se lo pide al orquestador
     Datos de otras áreas que puede necesitar:
       (se basta con lo suyo)
 """
-from clientes.agentes.productos.agente import NODO
+from clientes.agentes.productos.agente import NODO, MODELO
 from clientes.agentes.productos.tools import TOOLS
 
-# búsqueda dirigida sobre datos
-MODELO = "claude-haiku-4-5-20251001"
 
 # lookup contra el backend, responde en segundos
 
-__all__ = ["MODELO", "NODO", "TOOLS"]
+# Lo que el orquestador ve de esta área. Es la PREGUNTA que contesta, no
+# la lista de sus tools: el orquestador delega en el ÁREA y es ella la que
+# decide cuáles usar y en qué orden.
+DESCRIPCION = (
+    "Si tenemos una pieza, cuánto cuesta y cómo se ve. Catálogo, disponibilidad, precio de lista y fotos de producto."
+)
+
+__all__ = ["MODELO", "DESCRIPCION", "NODO", "TOOLS"]
